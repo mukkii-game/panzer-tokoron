@@ -12,6 +12,8 @@ function mat(color) { return new THREE.MeshToonMaterial({ color }); }
 export function drawFace(ctx, kind) {
   const S = 256;
   ctx.clearRect(0, 0, S, S);
+  ctx.save();
+  ctx.translate(0, 16); // 帽子のつばに隠れないよう顔パーツをやや下へ
   ctx.lineCap = 'round';
   const eye = (x, y, rx, ry) => { ctx.fillStyle = '#3a2410'; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 7); ctx.fill(); };
   const cheek = (a = 1) => {
@@ -74,6 +76,7 @@ export function drawFace(ctx, kind) {
     cheek(0.7);
     ctx.fillStyle = '#7c2d12'; ctx.beginPath(); ctx.ellipse(128, 160, 14, 10, 0, 0, 7); ctx.fill();
   }
+  ctx.restore();
 }
 
 // ===== トコろんモデル =====
@@ -176,13 +179,21 @@ export class Player {
     this.vel = new THREE.Vector2(0, 0);
     this.hp = 5; this.maxHp = 5;
     this.invuln = 0;
-    this.radius = 1.1;
+    this.radius = 0.9; // 当たり判定は見た目より甘め(カジュアル調整)
     this.expression = 'normal';
     this.exprTimer = 0;
     this.shake = 0;
     this.dead = false;
     game.scene.add(this.group);
     this.group.position.copy(this.pos);
+    // 地面の丸影(高度の距離感用)
+    this.shadow = new THREE.Mesh(
+      new THREE.CircleGeometry(1.0, 20),
+      new THREE.MeshBasicMaterial({ color: 0x1a3a50, transparent: true, opacity: 0.28 })
+    );
+    this.shadow.rotation.x = -Math.PI / 2;
+    this.shadow.position.y = -0.44;
+    game.scene.add(this.shadow);
     // カメラの方をやや向く+後傾して顔を見せる(イラストの飛行ポーズ)
     this.group.rotation.y = 0.28;
     this.baseTilt = -0.38;
@@ -207,6 +218,7 @@ export class Player {
     this.shake = 0.7;
     game.audio.hit();
     game.ui.setHearts(this.hp);
+    game.ui.flashDamage();
     this.setExpression('panic', 1.4);
     if (this.hp <= 0) { this.dead = true; game.gameOver(); }
   }
@@ -241,6 +253,13 @@ export class Player {
       this.group.rotation.z = THREE.MathUtils.lerp(this.group.rotation.z, -this.vel.x * 0.045, dt * 8);
       this.group.rotation.x = THREE.MathUtils.lerp(this.group.rotation.x, this.baseTilt + this.vel.y * 0.025, dt * 8);
     }
+
+    // 丸影
+    this.shadow.position.x = this.pos.x;
+    this.shadow.position.z = 0;
+    const shScale = Math.max(0.4, 1.35 - this.pos.y * 0.07);
+    this.shadow.scale.setScalar(shScale);
+    this.shadow.material.opacity = 0.3 * shScale;
 
     // プロペラ・羽ばたき・足
     this.model.blades.rotation.y += dt * 26;

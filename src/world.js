@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Dango, Shoyu, TeaDrone, Biplane, Negi, Boss } from './enemies.js';
+import { Dango, Shoyu, TeaDrone, Biplane, Negi, Boss, disposeObject } from './enemies.js';
 
 const mat = c => new THREE.MeshToonMaterial({ color: c });
 const SCROLL = 26; // 世界の流れ(奥→手前 +Z)
@@ -267,7 +267,7 @@ export class World {
     for (let i = this.scenery.length - 1; i >= 0; i--) {
       const o = this.scenery[i];
       o.position.z += SCROLL * dt;
-      if (o.position.z > 35) { g.scene.remove(o); this.scenery.splice(i, 1); }
+      if (o.position.z > 35) { g.scene.remove(o); disposeObject(o); this.scenery.splice(i, 1); }
     }
   }
 }

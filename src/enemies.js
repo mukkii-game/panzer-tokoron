@@ -19,6 +19,16 @@ function getLockTex() {
   return lockTex;
 }
 
+// GPUリソース破棄(テクスチャは共有のため破棄しない)
+export function disposeObject(obj) {
+  obj.traverse(o => {
+    if (o.isMesh || o.isSprite) {
+      o.geometry?.dispose?.();
+      if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose());
+    }
+  });
+}
+
 export class Enemy {
   constructor(game, group, hp, radius, score = 100) {
     this.game = game;
@@ -58,6 +68,7 @@ export class Enemy {
   remove() {
     this.alive = false;
     this.game.scene.remove(this.mesh);
+    disposeObject(this.mesh);
   }
   update(dt) { this.t += dt; }
 }
@@ -105,7 +116,7 @@ export class Dango extends Enemy {
       g.add(ball);
     }
     g.position.set(x, y, -85);
-    super(game, g, 1, 1.3);
+    super(game, g, 1, 1.05);
     this.baseX = x;
     this.speed = 22 + Math.random() * 6;
     this.phase = Math.random() * 7;
@@ -147,7 +158,7 @@ export class Shoyu extends Enemy {
       this.mesh.rotation.z = Math.sin(this.t * 8) * 0.12; // シェイク
       this.cool -= dt;
       if (this.cool <= 0) {
-        this.cool = 2.1;
+        this.cool = 2.6;
         // 山なり醤油弾
         const v = this.game.player.pos.clone().sub(this.pos);
         const time = 1.4;
@@ -192,11 +203,11 @@ export class TeaDrone extends Enemy {
       if (Math.abs(this.pos.x) > 13) this.dir *= -1;
       this.cool -= dt;
       if (this.cool <= 0) {
-        this.cool = 2.4;
+        this.cool = 2.8;
         const base = this.game.player.pos.clone().sub(this.pos).normalize();
         for (let i = -1; i <= 1; i++) {
           const v = base.clone();
-          v.x += i * 0.22; v.normalize().multiplyScalar(13);
+          v.x += i * 0.22; v.normalize().multiplyScalar(11);
           spawnBullet(this.game, this.pos, v, 0x86b829, 0.3);
         }
         this.game.audio.shoot();
@@ -239,8 +250,8 @@ export class Biplane extends Enemy {
     this.mesh.rotation.z = Math.sin(this.t * 3) * 0.15;
     this.cool -= dt;
     if (this.cool <= 0 && Math.abs(this.pos.x) < 15) {
-      this.cool = 1.1;
-      shootAt(this.game, this.pos, 15, 0xffa03c, 0.28, 2);
+      this.cool = 1.5;
+      shootAt(this.game, this.pos, 12.5, 0xffa03c, 0.28, 2.5);
       this.game.audio.shoot();
     }
     if (Math.abs(this.pos.x) > 30 || this.pos.z > 14) this.remove();
@@ -264,8 +275,8 @@ export class Negi extends Enemy {
   }
   update(dt) {
     super.update(dt);
-    const to = this.game.player.pos.clone().sub(this.pos).normalize().multiplyScalar(10);
-    this.vel.lerp(to, dt * 0.9);
+    const to = this.game.player.pos.clone().sub(this.pos).normalize().multiplyScalar(9);
+    this.vel.lerp(to, dt * 0.7);
     this.pos.addScaledVector(this.vel, dt);
     this.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), this.vel.clone().normalize());
     if (this.t > 6 || this.pos.z > 14) this.remove();
@@ -359,14 +370,14 @@ export class Boss extends Enemy {
     if (this.entered) {
       this.cool -= dt;
       if (this.cool <= 0) {
-        this.cool = this.rage ? 1.3 : 2.2;
+        this.cool = this.rage ? 1.5 : 2.4;
         const n = this.rage ? 7 : 5;
         const base = this.game.player.pos.clone().sub(this.pos).normalize();
         for (let i = 0; i < n; i++) {
           const v = base.clone();
           v.x += (i - (n - 1) / 2) * 0.16;
           v.y += (Math.random() - 0.5) * 0.1;
-          v.normalize().multiplyScalar(this.rage ? 15 : 12);
+          v.normalize().multiplyScalar(this.rage ? 13 : 11);
           spawnBullet(this.game, this.pos.clone().add(new THREE.Vector3(0, -0.7, 1.5)), v, 0xff7030, 0.42);
         }
         this.game.audio.shoot();
@@ -389,12 +400,19 @@ export class Boss extends Enemy {
         spawnExplosion(this.game, s.position, 1.6);
         this.game.audio.boom();
         this.game.scene.remove(s);
+        disposeObject(s);
       }, i * 180);
     });
     spawnExplosion(this.game, this.pos, 3);
     this.game.audio.bigBoom();
     this.game.scene.remove(this.mesh);
+    disposeObject(this.mesh);
     this.game.onBossDefeated(this);
   }
-  remove() { this.alive = false; this.game.scene.remove(this.mesh); this.segments.forEach(s => this.game.scene.remove(s)); }
+  remove() {
+    this.alive = false;
+    this.game.scene.remove(this.mesh);
+    disposeObject(this.mesh);
+    this.segments.forEach(s => { this.game.scene.remove(s); disposeObject(s); });
+  }
 }

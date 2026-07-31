@@ -5,6 +5,7 @@ import { UI } from './ui.js';
 import { Player } from './player.js';
 import { Weapons } from './weapons.js';
 import { World } from './world.js';
+import { disposeObject } from './enemies.js';
 
 // ================== カメラ設定(調整用) ==================
 // パンツァードラグーンで視点を「斜め後ろ」に回した状態を基本とする。
@@ -146,7 +147,7 @@ function updateCollisions(dt) {
       p.takeHit(game);
       dead = true;
     }
-    if (dead) { scene.remove(b.mesh); game.enemyBullets.splice(i, 1); }
+    if (dead) { scene.remove(b.mesh); disposeObject(b.mesh); game.enemyBullets.splice(i, 1); }
   }
 
   // 敵本体 vs 自機
@@ -173,7 +174,7 @@ function updateEffects(dt) {
       part.mesh.scale.setScalar(Math.max(0.01, k));
     }
     if (fx.t >= fx.dur) {
-      fx.parts.forEach(part => scene.remove(part.mesh));
+      fx.parts.forEach(part => { scene.remove(part.mesh); disposeObject(part.mesh); });
       game.effects.splice(i, 1);
     }
   }

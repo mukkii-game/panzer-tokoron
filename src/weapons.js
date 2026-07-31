@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { disposeObject } from './enemies.js';
 
 // 直線ショット + ロックオン/ホーミング + 照準管理
 export class Weapons {
@@ -14,6 +15,16 @@ export class Weapons {
     this._raycaster = new THREE.Raycaster();
     this._aimPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 45); // z=-45
     game.input.onLockRelease = () => this.releaseLocks();
+
+    // ロックオンライン(自機→ロック中の敵)
+    const lineGeo = new THREE.BufferGeometry();
+    lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(this.maxLocks * 6), 3));
+    this.lockLines = new THREE.LineSegments(
+      lineGeo,
+      new THREE.LineBasicMaterial({ color: 0xffe93d, transparent: true, opacity: 0.65 })
+    );
+    this.lockLines.frustumCulled = false;
+    game.scene.add(this.lockLines);
   }
 
   // 照準(スクリーン座標)→ 奥の平面上のワールド座標
@@ -121,6 +132,23 @@ export class Weapons {
     // 死んだ敵のロック解除
     this.locks = this.locks.filter(e => { if (!e.alive) { game.ui.setLock(this.locks.length - 1); return false; } return true; });
 
+    // ロックオンラインの更新
+    const lp = this.lockLines.geometry.attributes.position;
+    const pp = game.player.pos;
+    for (let i = 0; i < this.maxLocks; i++) {
+      const e = this.locks[i];
+      if (e && e.alive) {
+        const wob = Math.sin(game.time * 20 + i) * 0.1;
+        lp.setXYZ(i * 2, pp.x, pp.y + 0.3, pp.z);
+        lp.setXYZ(i * 2 + 1, e.pos.x + wob, e.pos.y + wob, e.pos.z);
+      } else {
+        lp.setXYZ(i * 2, 0, -100, 0);
+        lp.setXYZ(i * 2 + 1, 0, -100, 0);
+      }
+    }
+    lp.needsUpdate = true;
+    this.lockLines.visible = this.locks.length > 0;
+
     // ===== 直線弾 =====
     for (let i = this.shots.length - 1; i >= 0; i--) {
       const s = this.shots[i];
@@ -137,6 +165,7 @@ export class Weapons {
       }
       if (hit || s.life <= 0) {
         game.scene.remove(s.mesh);
+        disposeObject(s.mesh);
         this.shots.splice(i, 1);
       }
     }
@@ -158,6 +187,7 @@ export class Weapons {
       }
       if (done || ms.life <= 0) {
         game.scene.remove(ms.mesh);
+        disposeObject(ms.mesh);
         this.missiles.splice(i, 1);
       }
     }

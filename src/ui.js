@@ -11,8 +11,15 @@ export class UI {
       title: $('title-screen'), result: $('result-screen'),
       resultTitle: $('result-title'), resultScore: $('result-score'),
       touchHint: $('touch-hint'), howtoPc: $('howto-pc'),
+      damageFlash: $('damage-flash'),
     };
     this._msgTimer = null; this._comboTimer = null;
+  }
+
+  flashDamage() {
+    const el = this.els.damageFlash;
+    el.style.transition = 'none'; el.style.opacity = 1;
+    requestAnimationFrame(() => { el.style.transition = 'opacity .5s'; el.style.opacity = 0; });
   }
 
   setScore(v) { this.els.score.textContent = 'SCORE ' + v; }

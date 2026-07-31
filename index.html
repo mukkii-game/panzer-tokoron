@@ -27,6 +27,9 @@
   #bossbar-bg { height:14px; background:rgba(0,0,0,.45); border-radius:7px; border:2px solid #fff; overflow:hidden; }
   #bossbar { height:100%; width:100%; background:linear-gradient(#ff8a5c,#e8380d); border-radius:5px; transition:width .15s; }
 
+  #damage-flash { position:fixed; inset:0; pointer-events:none; z-index:15; background:radial-gradient(ellipse at center, transparent 40%, rgba(255,40,40,.55) 100%);
+    opacity:0; transition:opacity .5s; }
+
   /* ===== reticle ===== */
   #reticle { position:fixed; width:56px; height:56px; margin:-28px 0 0 -28px; pointer-events:none; z-index:11; display:none; }
   #reticle .ring { position:absolute; inset:0; border:3px solid #fff; border-radius:50%; box-shadow:0 0 6px rgba(0,0,0,.4), inset 0 0 6px rgba(0,0,0,.3); }
@@ -71,6 +74,7 @@
   </div>
 </div>
 
+<div id="damage-flash"></div>
 <div id="reticle"><div class="ring"></div><div class="dot"></div></div>
 <div id="stick"><div id="stick-knob"></div></div>
 <div id="touch-hint">左：移動スティック ／ 右：照準・押しっぱなしでロックオン→離して発射</div>
