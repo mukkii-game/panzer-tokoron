@@ -214,7 +214,7 @@ export class World {
     });
     dir(48.0, L);
     at(49.8, () => {
-      new SanwariGirl(g, -5, 5); new SanwariGirl(g, 2, 6); new SanwariGirl(g, 6, 4);
+      new SanwariGirl(g, -5, 5); new SanwariGirl(g, 5, 6);
     });
     dir(54.5, B);
     at(56.2, () => spawnDangoPack(g, 'swarm', 4));
@@ -224,25 +224,24 @@ export class World {
     at(60.5, () => this.setPhase('park'));
     msg(60.8, 'AREA 3 ─ 航空記念公園');
     msg(61.5, '会式一号風 複葉機編隊！！');
-    // 近くで並走する大型複葉機を複数
     at(62.0, () => spawnBiplaneWingmen(g, 5));
     dir(66.0, L);
     at(67.0, () => spawnBiplaneWingmen(g, 4));
     at(67.5, () => {
       new TeaDrone(g, -7, 5); new TeaDrone(g, 7, 4);
-      new SanwariGirl(g, -4, 5); new SanwariGirl(g, 0, 6); new SanwariGirl(g, 4, 4);
+      new SanwariGirl(g, 4, 5);
     });
     dir(72.0, R);
     at(73.0, () => spawnBiplaneWingmen(g, 6));
     at(73.5, () => {
       new Udon(g, -5, 5); new Udon(g, 5, 6);
-      new SanwariGirl(g, -2, 6); new SanwariGirl(g, 3, 4); new SanwariGirl(g, 5, 6);
+      new SanwariGirl(g, -4, 6);
     });
     dir(78.0, FRONT);
     at(79.0, () => {
       spawnBiplaneWingmen(g, 4);
       spawnDangoPack(g, 'swarm');
-      new SanwariGirl(g, -4, 5); new SanwariGirl(g, 0, 6); new SanwariGirl(g, 4, 4);
+      new SanwariGirl(g, 5, 5);
       new Negi(g, 0, -30); new Negi(g, -5, -28);
     });
     dir(84.0, B);
@@ -250,7 +249,7 @@ export class World {
     at(85.5, () => {
       new TeaDrone(g, 0, 8); new TeaDrone(g, -5, 4); new TeaDrone(g, 5, 5);
       new Negi(g, 0, -30); new Negi(g, -6, -25); new Negi(g, 6, -25);
-      new SanwariGirl(g, -3, 5); new SanwariGirl(g, 3, 5); new SanwariGirl(g, 0, 7);
+      new SanwariGirl(g, -3, 5); new SanwariGirl(g, 4, 6);
     });
 
     // ========== AREA4: 大乱戦ミックス ==========
@@ -259,32 +258,28 @@ export class World {
     at(89.5, () => {
       new Shoyu(g, -7, 6); new Shoyu(g, 7, 6); new Shoyu(g, 0, 4);
       new Udon(g, -4, 5); new Udon(g, 4, 5); new Negi(g, 0, -30); new Negi(g, -5, -28);
-      new SanwariGirl(g, -4, 5); new SanwariGirl(g, 4, 6); new SanwariGirl(g, 0, 7);
-      new SanwariGirl(g, -7, 4); new SanwariGirl(g, 7, 5); new SanwariGirl(g, 2, 3);
+      new SanwariGirl(g, -5, 5); new SanwariGirl(g, 5, 6);
     });
     dir(94.0, L);
     at(95.5, () => {
       spawnBiplaneWingmen(g, 5);
       new TeaDrone(g, -6, 7); new TeaDrone(g, 6, 3); new TeaDrone(g, 0, 5);
       spawnDangoPack(g, 'edge');
-      new SanwariGirl(g, 0, 5); new SanwariGirl(g, -5, 6); new SanwariGirl(g, 5, 4);
-      new SanwariGirl(g, -2, 7); new SanwariGirl(g, 3, 3); new SanwariGirl(g, -8, 5);
-      new SanwariGirl(g, 8, 6); new Udon(g, -3, 4); new Udon(g, 3, 6);
+      new SanwariGirl(g, 0, 5); new SanwariGirl(g, 6, 4);
+      new Udon(g, -3, 4); new Udon(g, 3, 6);
     });
     dir(101.0, FRONT);
     at(102.5, () => {
       spawnDangoPack(g, 'swarm'); spawnDangoPack(g, 'outback');
-      new SanwariGirl(g, -6, 5); new SanwariGirl(g, -2, 4); new SanwariGirl(g, 2, 6);
-      new SanwariGirl(g, 6, 5); new SanwariGirl(g, 0, 7); new SanwariGirl(g, -4, 3);
-      new SanwariGirl(g, 4, 8); new Negi(g, -4, -28); new Negi(g, 4, -32);
+      new SanwariGirl(g, -5, 5); new SanwariGirl(g, 4, 6);
+      new Negi(g, -4, -28); new Negi(g, 4, -32);
     });
     dir(108.0, R);
     at(109.5, () => {
       new Negi(g, -7, -25); new Negi(g, 7, -25); new Negi(g, 0, -35); new Negi(g, -3, -30); new Negi(g, 3, -30);
       spawnBiplaneWingmen(g, 4);
       new Shoyu(g, -5, 5); new Shoyu(g, 5, 6);
-      new SanwariGirl(g, -4, 6); new SanwariGirl(g, 0, 5); new SanwariGirl(g, 4, 4);
-      new SanwariGirl(g, -7, 5); new SanwariGirl(g, 7, 4); new SanwariGirl(g, 2, 7);
+      new SanwariGirl(g, -4, 6); new SanwariGirl(g, 5, 4);
     });
     dir(115.0, B);
     at(116.5, () => {
@@ -292,9 +287,7 @@ export class World {
       new TeaDrone(g, 0, 6); new TeaDrone(g, -8, 4); new TeaDrone(g, 8, 5);
       spawnDangoPack(g, 'swarm');
       new Udon(g, -5, 6); new Udon(g, 5, 4); new Udon(g, 0, 5);
-      new SanwariGirl(g, 4, 5); new SanwariGirl(g, -3, 5); new SanwariGirl(g, 0, 6);
-      new SanwariGirl(g, -7, 4); new SanwariGirl(g, 7, 6); new SanwariGirl(g, 2, 3);
-      new SanwariGirl(g, -5, 7); new SanwariGirl(g, 5, 3); new SanwariGirl(g, -1, 4);
+      new SanwariGirl(g, 4, 5); new SanwariGirl(g, -4, 6);
     });
 
     // --- ボス ---

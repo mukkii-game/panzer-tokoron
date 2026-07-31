@@ -490,70 +490,105 @@ export class SanwariGirl extends Enemy {
       transparent: true,
       depthWrite: false,
     }));
-    girl.scale.set(5.2, 5.2, 1);
+    girl.scale.set(6.5, 6.5, 1);
     g.add(girl);
     const shout = new THREE.Sprite(new THREE.SpriteMaterial({
       map: getShoutTex(),
       transparent: true,
       depthWrite: false,
     }));
-    shout.scale.set(4.2, 1.3, 1);
-    shout.position.y = 3.2;
+    shout.scale.set(5.0, 1.55, 1);
+    shout.position.y = 3.8;
     g.add(shout);
-    super(game, g, 4, 2.4, 350);
+    super(game, g, 4, 2.8, 350);
     this.girl = girl;
     this.shout = shout;
-    // やや近い距離から登場 → 手前でゆっくり
-    this.place(x, y, -55 - Math.random() * 15);
+    this.noBodyHit = true; // 接近しても体当たりしない
+    this.place(x, y, -70 - Math.random() * 20);
     this.baseLat = x;
-    this.cool = 1.5;
-    this.holdT = 0;
-    this.nearDepth = -10 - Math.random() * 3; // この手前で減速ホールド
+    this.cool = 1.2;
+    this.phase = 'wait'; // wait → dash → pose → flee
+    this.phaseT = 0;
+    this.waitDur = 1.0 + Math.random() * 0.8;
+    this.poseDur = 3.2 + Math.random() * 1.2;
+    this.parkLat = x >= 0 ? 4.5 + Math.random() * 2.5 : -(4.5 + Math.random() * 2.5);
+    this.parkDepth = -5.5 - Math.random() * 2;
+    this.parkH = Math.max(3.2, Math.min(7.5, y));
+    this.fleeSide = this.parkLat >= 0 ? 1 : -1;
   }
   update(dt) {
     super.update(dt);
-    const pulse = 1 + Math.sin(this.t * 6) * 0.06;
-    this.girl.scale.setScalar(5.2 * pulse);
-    const shoutOn = Math.sin(this.t * 3.2) > -0.2;
+    this.phaseT += dt;
+    const shoutOn = Math.sin(this.t * 3.2) > -0.25;
     this.shout.visible = shoutOn;
-    if (shoutOn) {
-      const s = 1 + Math.abs(Math.sin(this.t * 8)) * 0.12;
-      this.shout.scale.set(4.2 * s, 1.3 * s, 1);
-      this.shout.position.y = 3.1 + Math.sin(this.t * 10) * 0.15;
-    }
 
-    if (this.depth < this.nearDepth) {
-      // 接近: やや速めだが通常敵より近いスポーン
-      const sp = Math.max(6, depthSpeed(this.depth) * 0.75);
+    if (this.phase === 'wait') {
+      const pulse = 1 + Math.sin(this.t * 4) * 0.04;
+      this.girl.scale.setScalar(5.5 * pulse);
       this.place(
-        this.baseLat + Math.sin(this.t * 1.0) * 1.2,
-        this.h,
-        this.depth + sp * dt
+        this.baseLat + Math.sin(this.t * 1.2) * 1.5,
+        this.h + Math.sin(this.t * 2) * 0.2,
+        this.depth + 2.5 * dt
       );
-    } else if (this.holdT < 5.5) {
-      // プレイヤー近くでゆっくり横揺れ＝狙いやすい
-      this.holdT += dt;
+      if (this.phaseT >= this.waitDur) {
+        this.phase = 'dash';
+        this.phaseT = 0;
+        this.game.audio.msg();
+      }
+    } else if (this.phase === 'dash') {
+      const pulse = 1 + Math.sin(this.t * 10) * 0.08;
+      this.girl.scale.setScalar((6.5 + this.phaseT * 2.5) * pulse);
+      const k = Math.min(1, dt * 5.5);
       this.place(
-        this.baseLat + Math.sin(this.t * 0.9) * 2.2,
-        this.h + Math.sin(this.t * 1.4) * 0.35,
-        this.depth + 0.22 * dt
+        THREE.MathUtils.lerp(this.lat, this.parkLat, k),
+        THREE.MathUtils.lerp(this.h, this.parkH, k),
+        THREE.MathUtils.lerp(this.depth, this.parkDepth, Math.min(1, dt * 7))
+      );
+      const close =
+        Math.abs(this.lat - this.parkLat) < 0.8 &&
+        Math.abs(this.depth - this.parkDepth) < 1.2;
+      if (close || this.phaseT > 1.4) {
+        this.phase = 'pose';
+        this.phaseT = 0;
+        this.cool = 0.4;
+      }
+    } else if (this.phase === 'pose') {
+      const pulse = 1 + Math.sin(this.t * 6) * 0.05;
+      this.girl.scale.setScalar(8.2 * pulse);
+      if (shoutOn) {
+        const s = 1 + Math.abs(Math.sin(this.t * 8)) * 0.12;
+        this.shout.scale.set(5.2 * s, 1.6 * s, 1);
+        this.shout.position.y = 4.4 + Math.sin(this.t * 10) * 0.12;
+      }
+      this.place(
+        this.parkLat + Math.sin(this.t * 1.5) * 0.6,
+        this.parkH + Math.sin(this.t * 2.2) * 0.25,
+        this.parkDepth
       );
       this.cool -= dt;
       if (this.cool <= 0) {
-        this.cool = 1.5 * this.game.relief();
-        for (let i = -2; i <= 2; i++) {
+        this.cool = 1.4 * this.game.relief();
+        for (let i = -1; i <= 1; i++) {
           const v = this.game.player.pos.clone().sub(this.pos).normalize();
-          v.addScaledVector(this.R, i * 0.18);
+          v.addScaledVector(this.R, i * 0.22);
           v.normalize().multiplyScalar(9);
           spawnBullet(this.game, this.pos, v, 0xff4d8a, 0.48);
         }
         this.game.audio.shoot();
-        this.game.audio.msg();
+      }
+      if (this.phaseT >= this.poseDur) {
+        this.phase = 'flee';
+        this.phaseT = 0;
       }
     } else {
-      this.place(this.lat, this.h, this.depth + 8 * dt);
+      this.girl.scale.setScalar(Math.max(3, 8.2 - this.phaseT * 3));
+      this.place(
+        this.lat + this.fleeSide * 22 * dt,
+        this.h + 10 * dt,
+        this.depth - 18 * dt
+      );
+      if (this.phaseT > 2.2 || Math.abs(this.lat) > 40 || this.depth < -90) this.remove();
     }
-    if (this.depth > 16) this.remove();
   }
 }
 

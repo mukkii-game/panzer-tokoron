@@ -243,7 +243,7 @@ function updateCollisions(dt) {
   // 敵本体 vs 自機
   if (!p.dead && p.invuln <= 0) {
     for (const e of game.enemies) {
-      if (!e.alive) continue;
+      if (!e.alive || e.noBodyHit) continue;
       if (e.pos.distanceTo(p.pos) < e.radius + p.radius) {
         p.takeHit(game);
         if (e !== game.boss) e.damage(3);
