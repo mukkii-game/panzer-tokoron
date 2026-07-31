@@ -141,7 +141,7 @@ window.game = game; // デバッグ・チューニング用
 game.player = new Player(game);
 game.weapons = new Weapons(game);
 game.world = new World(game);
-game.ui.setHearts(5);
+game.ui.setHearts(10);
 game.ui.setScore(0);
 
 // ================== カメラ更新(遅れ追従 + 360度ビュー) ==================
@@ -150,7 +150,7 @@ function updateCamera(dt) {
   let dd = game.waveDir - game.viewYaw;
   while (dd > Math.PI) dd -= Math.PI * 2;
   while (dd < -Math.PI) dd += Math.PI * 2;
-  game.viewYaw += dd * Math.min(1, dt * 3.2);
+  game.viewYaw += dd * Math.min(1, dt * 2.1);
 
   const vyaw = game.viewYaw;
   const p = game.player.pos;

@@ -23,7 +23,7 @@ export class UI {
   }
 
   setScore(v) { this.els.score.textContent = 'SCORE ' + v; }
-  setHearts(n, max = 5) {
+  setHearts(n, max = 10) {
     let s = '';
     for (let i = 0; i < max; i++) s += i < n ? '❤️' : '🤍';
     this.els.hearts.textContent = s;

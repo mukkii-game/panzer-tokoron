@@ -260,7 +260,7 @@ export class Player {
     this.lx = 0;
     this.pos = new THREE.Vector3(0, 4.5, 0);
     this.vel = new THREE.Vector2(0, 0);
-    this.hp = 5; this.maxHp = 5;
+    this.hp = 10; this.maxHp = 10;
     this.invuln = 0;
     this.radius = 0.9;
     this.expression = 'normal';

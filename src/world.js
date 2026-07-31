@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Dango, Shoyu, TeaDrone, Biplane, Negi, Boss, Udon, SanwariGirl, disposeObject, spawnDangoPack } from './enemies.js';
 
 const mat = c => new THREE.MeshToonMaterial({ color: c });
-const SCROLL = 42; // ペース圧縮に合わせて地面も速く
+const SCROLL = 28; // ペース 1.5倍スロー(旧42)
 
 // ===== 地面テクスチャ(明るめに描いて material.color で色調変化) =====
 function makeGroundTexture() {
@@ -172,125 +172,138 @@ export class World {
     const msg = (t, text) => at(t, () => { g.ui.showStageMsg(text); g.audio.msg(); });
     const dir = (t, theta) => at(t, () => g.setWaveDir(theta));
     const L = Math.PI / 2, R = -Math.PI / 2, B = 0, FRONT = Math.PI;
-    // クリアまで約1/3: 旧144秒→約48秒でボス。敵数は維持〜増加。
+    // 前回圧縮ペースを1.5倍スロー。ボス開始 〜71秒。中盤から三割うまい増量。
 
-    // --- AREA1 所沢上空 (~0–12s) ---
-    msg(0.2, 'AREA 1 ─ 所沢上空');
-    at(0.8, () => spawnDangoPack(g, 'swarm'));
-    dir(2.2, L);
-    at(2.5, () => {
+    // --- AREA1 (~0–17s) ---
+    msg(0.3, 'AREA 1 ─ 所沢上空');
+    at(1.2, () => spawnDangoPack(g, 'swarm'));
+    dir(3.3, L);
+    at(3.8, () => {
       new TeaDrone(g, -8, 6); new TeaDrone(g, 8, 4); new TeaDrone(g, -4, 7); new TeaDrone(g, 4, 3);
       new TeaDrone(g, 0, 5);
     });
-    dir(3.5, R);
-    at(3.8, () => spawnDangoPack(g, 'edge'));
-    dir(5.2, B);
-    at(5.5, () => { spawnDangoPack(g, 'outback'); spawnDangoPack(g, 'swarm'); });
-    dir(7.0, FRONT);
-    at(7.2, () => {
+    dir(5.3, R);
+    at(5.7, () => spawnDangoPack(g, 'edge'));
+    dir(7.8, B);
+    at(8.3, () => { spawnDangoPack(g, 'outback'); spawnDangoPack(g, 'swarm'); });
+    dir(10.5, FRONT);
+    at(10.8, () => {
       for (let i = 0; i < 6; i++) new Dango(g, -9 + i * 3.5, 3 + (i % 2) * 3, 'swarm');
       new TeaDrone(g, 0, 6); new TeaDrone(g, -6, 4);
     });
-    dir(8.5, R);
-    at(8.8, () => spawnDangoPack(g, 'swarm'));
-    dir(10.0, L);
-    at(10.3, () => {
+    dir(12.8, R);
+    at(13.2, () => spawnDangoPack(g, 'swarm'));
+    dir(15.0, L);
+    at(15.5, () => {
       new TeaDrone(g, 7, 7); new TeaDrone(g, -7, 3); new TeaDrone(g, 0, 5); new TeaDrone(g, 4, 6);
     });
-    dir(11.2, B);
+    dir(16.8, B);
 
-    // --- AREA2 プロペ通り (~12–22s) ---
-    at(12.0, () => this.setPhase('street'));
-    msg(12.2, 'AREA 2 ─ プロペ通り商店街');
-    at(12.8, () => {
+    // --- AREA2 プロペ通り (~18–33s) 三割は少し ---
+    at(18.0, () => this.setPhase('street'));
+    msg(18.3, 'AREA 2 ─ プロペ通り商店街');
+    at(19.2, () => {
       new Shoyu(g, -6, 5); new Shoyu(g, 6, 5); new Shoyu(g, 0, 7);
       new Udon(g, -3, 5); new Udon(g, 3, 4);
     });
-    at(14.0, () => {
-      new SanwariGirl(g, -4, 5); new SanwariGirl(g, 5, 6); new SanwariGirl(g, 0, 4);
+    at(21.0, () => {
+      new SanwariGirl(g, -4, 5); new SanwariGirl(g, 5, 6);
     });
-    at(14.6, () => {
+    at(21.9, () => {
       new Negi(g, -5, -30); new Negi(g, 5, -30); new Negi(g, 0, -40); new Negi(g, -8, -35); new Negi(g, 8, -35);
     });
-    dir(15.2, L);
-    at(15.6, () => {
+    dir(22.8, L);
+    at(23.4, () => {
       spawnDangoPack(g, 'swarm');
       new Udon(g, -5, 4); new Udon(g, 5, 6); new Udon(g, 0, 5);
     });
-    dir(17.2, R);
-    at(17.6, () => {
+    dir(25.8, R);
+    at(26.4, () => {
       new Negi(g, -8, -25); new Negi(g, 8, -25); new Negi(g, 0, -28);
       new Shoyu(g, -5, 4); new Shoyu(g, 5, 6);
       new SanwariGirl(g, 0, 5.5);
     });
-    dir(19.2, L);
-    at(19.6, () => { spawnDangoPack(g, 'edge'); new TeaDrone(g, -4, 6); new TeaDrone(g, 4, 5); });
-    dir(21.2, B);
-    at(21.6, () => {
+    dir(28.8, L);
+    at(29.4, () => { spawnDangoPack(g, 'edge'); new TeaDrone(g, -4, 6); new TeaDrone(g, 4, 5); });
+    dir(31.8, B);
+    at(32.4, () => {
       new Shoyu(g, 0, 5); new Negi(g, -6, -28); new Negi(g, 6, -28);
       spawnDangoPack(g, 'outback');
       new Udon(g, -3, 5); new Udon(g, 3, 6);
     });
 
-    // --- AREA3 航空公園 (~24–33s) ---
-    at(24.0, () => this.setPhase('park'));
-    msg(24.2, 'AREA 3 ─ 航空記念公園');
-    at(25.0, () => {
+    // --- AREA3 航空公園 (~36–50s) 三割うまい増量 ---
+    at(36.0, () => this.setPhase('park'));
+    msg(36.3, 'AREA 3 ─ 航空記念公園');
+    at(37.5, () => {
       new Biplane(g, 1, 5); new Biplane(g, -1, 7); new Biplane(g, 1, 3); new Biplane(g, -1, 4);
+      new SanwariGirl(g, -3, 5); new SanwariGirl(g, 3, 6); new SanwariGirl(g, 0, 4);
     });
-    dir(26.0, L);
-    at(26.4, () => {
+    dir(39.0, L);
+    at(39.6, () => {
       new Biplane(g, 1, 3); new Biplane(g, 1, 6); new Biplane(g, -1, 5);
       new TeaDrone(g, -7, 5); new Udon(g, 4, 5); new Udon(g, -4, 6);
+      new SanwariGirl(g, -6, 4); new SanwariGirl(g, 6, 5); new SanwariGirl(g, 1, 7);
     });
-    dir(28.0, R);
-    at(28.4, () => {
+    dir(42.0, R);
+    at(42.6, () => {
       new Biplane(g, -1, 4); new Biplane(g, -1, 7); new Biplane(g, 1, 5.5); new Biplane(g, 1, 2.5);
-      new SanwariGirl(g, -2, 6); new SanwariGirl(g, 3, 4);
+      new SanwariGirl(g, -2, 6); new SanwariGirl(g, 3, 4); new SanwariGirl(g, -5, 5); new SanwariGirl(g, 5, 6);
     });
-    dir(30.0, FRONT);
-    at(30.4, () => { spawnDangoPack(g, 'swarm'); spawnDangoPack(g, 'edge'); new Biplane(g, 1, 6); });
-    dir(32.0, B);
-    at(32.4, () => {
+    dir(45.0, FRONT);
+    at(45.6, () => {
+      spawnDangoPack(g, 'swarm'); spawnDangoPack(g, 'edge'); new Biplane(g, 1, 6);
+      new SanwariGirl(g, -4, 5); new SanwariGirl(g, 0, 6); new SanwariGirl(g, 4, 4);
+    });
+    dir(48.0, B);
+    at(48.6, () => {
       new Biplane(g, -1, 3); new Biplane(g, 1, 7); new Biplane(g, -1, 6);
       new TeaDrone(g, 0, 8); new TeaDrone(g, -5, 4);
       new Negi(g, 0, -30); new Negi(g, -6, -25); new Negi(g, 6, -25);
+      new SanwariGirl(g, -3, 5); new SanwariGirl(g, 3, 5); new SanwariGirl(g, 0, 7); new SanwariGirl(g, 6, 3);
     });
 
-    // --- AREA4 通信基地 (~35–44s) ---
-    at(35.0, () => this.setPhase('base'));
-    msg(35.2, 'AREA 4 ─ 米軍通信基地');
-    at(35.8, () => {
+    // --- AREA4 通信基地 (~52.5–66s) 三割うまいさらに増 ---
+    at(52.5, () => this.setPhase('base'));
+    msg(52.8, 'AREA 4 ─ 米軍通信基地');
+    at(53.7, () => {
       new Shoyu(g, -7, 6); new Shoyu(g, 7, 6); new Shoyu(g, 0, 4);
       new Negi(g, 0, -30); new Negi(g, -5, -28);
       new Udon(g, 0, 4); new Udon(g, -6, 5); new Udon(g, 6, 5);
+      new SanwariGirl(g, -4, 5); new SanwariGirl(g, 4, 6); new SanwariGirl(g, 0, 7); new SanwariGirl(g, -7, 4);
     });
-    dir(37.2, L);
-    at(37.6, () => {
+    dir(55.8, L);
+    at(56.4, () => {
       new Biplane(g, 1, 5); new Biplane(g, -1, 5); new Biplane(g, 1, 7); new Biplane(g, -1, 3);
       new TeaDrone(g, -6, 7); new TeaDrone(g, 6, 3); new TeaDrone(g, 0, 5);
-      new SanwariGirl(g, 0, 5); new SanwariGirl(g, -5, 6);
+      new SanwariGirl(g, 0, 5); new SanwariGirl(g, -5, 6); new SanwariGirl(g, 5, 4);
+      new SanwariGirl(g, -2, 7); new SanwariGirl(g, 3, 3); new SanwariGirl(g, -8, 5);
     });
-    dir(39.2, FRONT);
-    at(39.6, () => { spawnDangoPack(g, 'edge'); spawnDangoPack(g, 'swarm'); });
-    dir(41.2, R);
-    at(41.6, () => {
+    dir(58.8, FRONT);
+    at(59.4, () => {
+      spawnDangoPack(g, 'edge'); spawnDangoPack(g, 'swarm');
+      new SanwariGirl(g, -6, 5); new SanwariGirl(g, -2, 4); new SanwariGirl(g, 2, 6); new SanwariGirl(g, 6, 5);
+    });
+    dir(61.8, R);
+    at(62.4, () => {
       new Negi(g, -7, -25); new Negi(g, 7, -25); new Negi(g, 0, -35); new Negi(g, -3, -30); new Negi(g, 3, -30);
       new Biplane(g, 1, 6); new Biplane(g, -1, 4); new Biplane(g, 1, 3);
+      new SanwariGirl(g, -4, 6); new SanwariGirl(g, 0, 5); new SanwariGirl(g, 4, 4);
     });
-    dir(43.2, B);
-    at(43.6, () => {
+    dir(64.8, B);
+    at(65.4, () => {
       new Shoyu(g, -6, 4); new Shoyu(g, 6, 7); new Shoyu(g, 0, 6);
       new TeaDrone(g, 0, 6); new TeaDrone(g, -8, 4);
       spawnDangoPack(g, 'outback');
       new Udon(g, -5, 6); new Udon(g, 5, 4);
-      new SanwariGirl(g, 4, 5); new SanwariGirl(g, -3, 5);
+      new SanwariGirl(g, 4, 5); new SanwariGirl(g, -3, 5); new SanwariGirl(g, 0, 6);
+      new SanwariGirl(g, -7, 4); new SanwariGirl(g, 7, 6); new SanwariGirl(g, 2, 3); new SanwariGirl(g, -5, 7);
     });
 
-    // --- ボス (~46–48s) ---
-    dir(45.5, B);
-    msg(46.0, '？？？ 「よくぞここまで来たな…」');
-    at(47.5, () => this.startBoss());
+    // --- ボス (~68–71s) ---
+    dir(68.2, B);
+    msg(69.0, '？？？ 「よくぞここまで来たな…」');
+    at(71.2, () => this.startBoss());
     return ev;
   }
 

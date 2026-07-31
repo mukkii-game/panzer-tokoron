@@ -48,13 +48,13 @@ export class Weapons {
     const from = game.player.pos.clone().addScaledVector(F, -0.6);
     const aim = this.aimWorldPoint();
     const dir = aim.sub(from).normalize();
-    // 大きめの黄色い玉
+    // 通常弾: 5倍サイズ・2倍速
     const m = new THREE.Mesh(
-      new THREE.SphereGeometry(0.48, 12, 10),
+      new THREE.SphereGeometry(2.4, 14, 12),
       new THREE.MeshBasicMaterial({ color: 0xfff04a })
     );
     const glow = new THREE.Mesh(
-      new THREE.SphereGeometry(0.7, 8, 6),
+      new THREE.SphereGeometry(3.5, 10, 8),
       new THREE.MeshBasicMaterial({ color: 0xffe080, transparent: true, opacity: 0.35 })
     );
     const g = new THREE.Group();
@@ -62,7 +62,7 @@ export class Weapons {
     g.position.copy(from);
     g.lookAt(from.clone().add(dir));
     game.scene.add(g);
-    this.shots.push({ mesh: g, vel: dir.multiplyScalar(92), life: 1.6 });
+    this.shots.push({ mesh: g, vel: dir.multiplyScalar(184), life: 1.4, hitR: 2.6 });
     game.audio.shoot();
   }
 
@@ -198,7 +198,7 @@ export class Weapons {
       let hit = false;
       for (const e of game.enemies) {
         if (!e.alive) continue;
-        if (s.mesh.position.distanceTo(e.pos) < e.radius + 0.65) {
+        if (s.mesh.position.distanceTo(e.pos) < e.radius + (s.hitR || 0.65)) {
           e.damage(1);
           hit = true;
           break;
