@@ -1,0 +1,9 @@
+{
+  "name": "tokoron-tools",
+  "private": true,
+  "type": "module",
+  "description": "開発検証用ツール(ゲーム本体はビルドレス。これはスクリーンショット検証専用)",
+  "dependencies": {
+    "puppeteer-core": "^23.0.0"
+  }
+}
