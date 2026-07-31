@@ -177,15 +177,19 @@ export class World {
     // --- フェーズ1: 所沢上空 ---
     msg(0.5, 'AREA 1 ─ 所沢上空');
     at(3, () => { for (let i = 0; i < 4; i++) new Dango(g, -6 + i * 4, 4 + (i % 2) * 3); });
-    dir(6.5, L);
+    dir(5.5, L);
     at(8, () => { new TeaDrone(g, -8, 6); new TeaDrone(g, 8, 4); });
+    dir(11, R);
     at(13, () => { for (let i = 0; i < 5; i++) new Dango(g, -8 + i * 4, 3 + Math.random() * 5); });
-    dir(16.5, B);
+    dir(15.5, B);
     at(18, () => { new TeaDrone(g, 0, 7); for (let i = 0; i < 3; i++) new Dango(g, -4 + i * 4, 2.5); });
-    dir(22.5, R);
+    dir(20.5, FRONT);
+    at(22, () => { for (let i = 0; i < 4; i++) new Dango(g, -6 + i * 4, 3 + (i % 2) * 3); });
+    dir(24.5, R);
     at(24, () => { for (let i = 0; i < 6; i++) new Dango(g, (i % 2 ? -9 : 9), 2 + i * 1.2); new TeaDrone(g, -6, 5); });
-    dir(28.5, B);
+    dir(28, L);
     at(30, () => { new TeaDrone(g, 7, 7); new TeaDrone(g, -7, 3); });
+    dir(33, B);
 
     // --- フェーズ2: プロペ通り商店街 ---
     at(36, () => this.setPhase('street'));

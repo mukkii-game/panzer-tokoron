@@ -12,15 +12,26 @@ import { disposeObject } from './enemies.js';
 // 自機の顔が見える前方斜め上から、奥(後方)から来る敵を見渡す。
 // ゲーム中デバッグキー: 4/6=ヨー, 8/2=ピッチ, 3/9=距離, 5=数値をconsoleに出力
 const CAM = {
-  yaw: 0.38,      // 水平角(rad)。0=自機の真正面、+で右斜めへ
-  pitch: 0.36,    // 仰角(rad)
-  dist: 16,       // 自機からの距離
-  lookBack: 16,   // 注視点を自機の後方(奥)へずらす量
-  lookUp: 1.2,    // 注視点の高さオフセット
-  follow: 0.45,   // 自機移動へのカメラ追従率
-  swayYaw: 0.12,  // 照準によるカメラの振れ幅(ヨー)
-  swayPitch: 0.07,
+  yaw: 0.42,      // 斜め後ろ(顔の側面も少し見える)
+  pitch: 0.34,
+  dist: 15,
+  lookBack: 14,
+  lookUp: 0.8,
+  follow: 0.55,   // 自機追従の最終寄り率
+  swayYaw: 0.18,  // 照準による振れ
+  swayPitch: 0.1,
   fov: 58,
+  // 遅れ追従の時定数(小さいほど遅い)
+  lagPos: 2.2,    // 位置
+  lagAim: 3.5,    // カーソル
+  lagLook: 2.8,   // 注視点
+};
+
+// カメラの遅れ状態
+const camLag = {
+  cx: 0, cy: 4.5, cz: 0,
+  ax: 0, ay: 0,
+  lookX: 0, lookY: 4.5, lookZ: -14,
 };
 
 // ================== 初期化 ==================
@@ -57,8 +68,9 @@ const game = {
     while (d < -Math.PI) d += Math.PI * 2;
     if (Math.abs(d) < 0.2) { this.waveDir = theta; return; }
     this.waveDir = theta;
-    const label = Math.abs(d) > 2.6 ? '⟲ うしろから来るよ！' : d > 0 ? '⬅ ひだりから来るよ！' : '➡ みぎから来るよ！';
-    this.ui.showStageMsg(label, 1800);
+    const label = Math.abs(d) > 2.6 ? '⟲ 進行方向チェンジ！ うしろへ'
+      : d > 0 ? '⟲ 進行方向チェンジ！ ひだりへ' : '⟲ 進行方向チェンジ！ みぎへ';
+    this.ui.showStageMsg(label, 2000);
     this.audio.msg();
   },
   // ビュー座標系の基底ベクトル
@@ -129,46 +141,59 @@ game.world = new World(game);
 game.ui.setHearts(5);
 game.ui.setScore(0);
 
-// ================== カメラ更新(360度ビュー回転対応) ==================
+// ================== カメラ更新(遅れ追従 + 360度ビュー) ==================
 function updateCamera(dt) {
-  // ビュー回転を目標方向へ滑らかに追従(最短経路)
+  // ビュー回転を目標方向へ滑らかに追従(進行方向転換をゆっくり味わう)
   let dd = game.waveDir - game.viewYaw;
   while (dd > Math.PI) dd -= Math.PI * 2;
   while (dd < -Math.PI) dd += Math.PI * 2;
-  game.viewYaw += dd * Math.min(1, dt * 1.6);
+  game.viewYaw += dd * Math.min(1, dt * 1.15);
 
   const vyaw = game.viewYaw;
   const p = game.player.pos;
-  // 自機移動に部分追従した注視の中心(ワールド)
-  const cx = p.x * CAM.follow;
-  const cz = p.z * CAM.follow;
-  const cy = 4.5 + (p.y - 4.5) * CAM.follow;
 
-  // 照準でゆるく首を振る
-  const ax = (game.input.aim.x / innerWidth) * 2 - 1;
-  const ay = (game.input.aim.y / innerHeight) * 2 - 1;
-  const yawOff = THREE.MathUtils.clamp(CAM.yaw + ax * CAM.swayYaw, -1.2, 1.2);
-  const pitch = THREE.MathUtils.clamp(CAM.pitch - ay * CAM.swayPitch, 0.08, 1.05);
+  // 自機位置への遅れ追従
+  const targetCx = p.x * CAM.follow;
+  const targetCz = p.z * CAM.follow;
+  const targetCy = 4.2 + (p.y - 4.2) * CAM.follow;
+  const kp = Math.min(1, dt * CAM.lagPos);
+  camLag.cx += (targetCx - camLag.cx) * kp;
+  camLag.cy += (targetCy - camLag.cy) * kp;
+  camLag.cz += (targetCz - camLag.cz) * kp;
+
+  // カーソルへの遅れ追従
+  const axRaw = (game.input.aim.x / innerWidth) * 2 - 1;
+  const ayRaw = (game.input.aim.y / innerHeight) * 2 - 1;
+  const ka = Math.min(1, dt * CAM.lagAim);
+  camLag.ax += (axRaw - camLag.ax) * ka;
+  camLag.ay += (ayRaw - camLag.ay) * ka;
+
+  const yawOff = THREE.MathUtils.clamp(CAM.yaw + camLag.ax * CAM.swayYaw, -1.3, 1.3);
+  const pitch = THREE.MathUtils.clamp(CAM.pitch - camLag.ay * CAM.swayPitch, 0.08, 1.05);
   const totalYaw = vyaw + yawOff;
 
-  // 縦画面(スマホ)では距離を伸ばして視界を確保
   const aspect = innerWidth / innerHeight;
   const dist = CAM.dist * (aspect >= 1 ? 1 : 1 + (1 - aspect) * 0.9);
 
-  const tx = cx + Math.sin(totalYaw) * Math.cos(pitch) * dist;
-  const ty = cy + Math.sin(pitch) * dist;
-  const tz = cz + Math.cos(totalYaw) * Math.cos(pitch) * dist;
-  const k = Math.min(1, dt * 5);
-  camera.position.x += (tx - camera.position.x) * k;
-  camera.position.y += (ty - camera.position.y) * k;
-  camera.position.z += (tz - camera.position.z) * k;
-  // 注視点: 中心から敵方向(奥)へ
-  const lookYaw = vyaw + yawOff * 0.55;
-  camera.lookAt(
-    cx - Math.sin(lookYaw) * CAM.lookBack,
-    cy + CAM.lookUp,
-    cz - Math.cos(lookYaw) * CAM.lookBack
-  );
+  const tx = camLag.cx + Math.sin(totalYaw) * Math.cos(pitch) * dist;
+  const ty = camLag.cy + Math.sin(pitch) * dist;
+  const tz = camLag.cz + Math.cos(totalYaw) * Math.cos(pitch) * dist;
+  // カメラ本体も少し遅れて移動
+  const kc = Math.min(1, dt * 4.2);
+  camera.position.x += (tx - camera.position.x) * kc;
+  camera.position.y += (ty - camera.position.y) * kc;
+  camera.position.z += (tz - camera.position.z) * kc;
+
+  // 注視点も遅れ追従(奥+自機少し)
+  const lookYaw = vyaw + yawOff * 0.45;
+  const wantLookX = camLag.cx - Math.sin(lookYaw) * CAM.lookBack + p.x * 0.15;
+  const wantLookY = camLag.cy + CAM.lookUp + (p.y - 4.2) * 0.2;
+  const wantLookZ = camLag.cz - Math.cos(lookYaw) * CAM.lookBack + p.z * 0.15;
+  const kl = Math.min(1, dt * CAM.lagLook);
+  camLag.lookX += (wantLookX - camLag.lookX) * kl;
+  camLag.lookY += (wantLookY - camLag.lookY) * kl;
+  camLag.lookZ += (wantLookZ - camLag.lookZ) * kl;
+  camera.lookAt(camLag.lookX, camLag.lookY, camLag.lookZ);
 }
 camera.position.set(Math.sin(CAM.yaw) * CAM.dist, 10, CAM.dist);
 
