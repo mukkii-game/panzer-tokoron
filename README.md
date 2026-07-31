@@ -7,6 +7,8 @@
 
 ローカルサーバーで `index.html` を配信して開くだけ(ビルド不要)。
 
+**公開プレイURL:** https://mukkii-game.github.io/panzer-tokoron/
+
 ```powershell
 npx serve .
 # または
