@@ -175,64 +175,50 @@ export class World {
     // 序盤〜中盤: 1種類ゾーン。方向転換のたびに別種。
     // 転換は出現より遅らせ(~4割)、間隔も広め。中盤以降はミックス大乱戦。
 
-    // ========== AREA1: 単種ゾーン ==========
+    // ========== AREA1: 単種ゾーン(密度は半分) ==========
     msg(0.3, 'AREA 1 ─ 所沢上空');
-    // 団子だけ
-    at(1.0, () => spawnDangoPack(g, 'swarm'));
-    at(3.5, () => spawnDangoPack(g, 'swarm'));
-    // 転換→狭山茶だけ
+    at(1.0, () => spawnDangoPack(g, 'swarm', 4));
     dir(5.5, L);
     at(7.2, () => {
-      for (const [x, y] of [[-8, 6], [8, 4], [-4, 7], [4, 3], [0, 5], [-6, 5], [6, 6]]) {
+      for (const [x, y] of [[-8, 6], [8, 4], [0, 5], [4, 7]]) {
         new TeaDrone(g, x, y);
       }
     });
-    // 転換→団子(端から)
     dir(11.0, R);
-    at(12.8, () => spawnDangoPack(g, 'edge'));
-    // 転換→団子(往復)
+    at(12.8, () => spawnDangoPack(g, 'edge', 4));
     dir(16.5, B);
-    at(18.2, () => spawnDangoPack(g, 'outback'));
-    // 転換→狭山茶だけ
+    at(18.2, () => spawnDangoPack(g, 'outback', 4));
     dir(22.0, FRONT);
     at(23.8, () => {
-      for (const [x, y] of [[7, 7], [-7, 3], [0, 5], [4, 6], [-4, 4], [2, 8]]) {
+      for (const [x, y] of [[7, 7], [-7, 3], [0, 5]]) {
         new TeaDrone(g, x, y);
       }
     });
     dir(27.5, B);
 
-    // ========== AREA2: 単種ゾーン(商店街の名物を順に) ==========
+    // ========== AREA2: 単種ゾーン(商店街・密度半分) ==========
     at(29.0, () => this.setPhase('street'));
     msg(29.3, 'AREA 2 ─ プロペ通り商店街');
-    // 醤油だけ
     at(30.5, () => {
-      new Shoyu(g, -7, 5); new Shoyu(g, -3, 6); new Shoyu(g, 1, 4);
-      new Shoyu(g, 5, 7); new Shoyu(g, 8, 5); new Shoyu(g, 0, 8);
+      new Shoyu(g, -6, 5); new Shoyu(g, 2, 6); new Shoyu(g, 7, 5);
     });
-    // 転換→うどんだけ
     dir(35.0, L);
     at(36.8, () => {
-      new Udon(g, -6, 5); new Udon(g, -2, 4); new Udon(g, 2, 6);
-      new Udon(g, 6, 5); new Udon(g, 0, 7); new Udon(g, -4, 6); new Udon(g, 4, 3);
+      new Udon(g, -5, 5); new Udon(g, 0, 6); new Udon(g, 5, 4); new Udon(g, 3, 7);
     });
-    // 転換→ねぎだけ
     dir(41.5, R);
     at(43.2, () => {
-      for (const [x, z] of [[-8, -28], [-4, -32], [0, -26], [4, -35], [8, -30], [-6, -40], [6, -38], [2, -25]]) {
+      for (const [x, z] of [[-7, -28], [0, -32], [7, -26], [-3, -38]]) {
         new Negi(g, x, z);
       }
     });
-    // 転換→三割うまいだけ(導入)
     dir(48.0, L);
     at(49.8, () => {
-      new SanwariGirl(g, -6, 5); new SanwariGirl(g, -2, 6); new SanwariGirl(g, 2, 4);
-      new SanwariGirl(g, 6, 5); new SanwariGirl(g, 0, 7);
+      new SanwariGirl(g, -5, 5); new SanwariGirl(g, 2, 6); new SanwariGirl(g, 6, 4);
     });
-    // 転換→団子だけ
     dir(54.5, B);
-    at(56.2, () => spawnDangoPack(g, 'swarm'));
-    at(58.0, () => spawnDangoPack(g, 'edge'));
+    at(56.2, () => spawnDangoPack(g, 'swarm', 4));
+    at(58.0, () => spawnDangoPack(g, 'edge', 4));
 
     // ========== AREA3: 航空発祥・大型複葉機並走 ==========
     at(60.5, () => this.setPhase('park'));

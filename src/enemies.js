@@ -736,10 +736,11 @@ export class Negi extends Enemy {
   }
 }
 
-/** 団子8体ウェーブを一括スポーン */
-export function spawnDangoPack(game, mode = 'swarm') {
-  for (let i = 0; i < 8; i++) {
-    const lat = -12 + i * 3.4;
+/** 団子ウェーブを一括スポーン */
+export function spawnDangoPack(game, mode = 'swarm', count = 8) {
+  const n = Math.max(1, count | 0);
+  for (let i = 0; i < n; i++) {
+    const lat = n === 1 ? 0 : -12 + i * (24 / Math.max(1, n - 1));
     const h = 2.8 + (i % 3) * 2.4 + Math.random();
     new Dango(game, lat, h, mode);
   }
@@ -782,15 +783,15 @@ export class Boss extends Enemy {
     mouth.position.set(0, -0.7, 1.7); mouth.scale.set(1.15, 0.6, 0.5);
     head.add(mouth);
 
-    head.scale.setScalar(1.3);
-    super(game, head, 40, 3.2, 5000);
-    this.place(0, 6, -48);
+    head.scale.setScalar(3.9); // 旧1.3の約3倍
+    super(game, head, 40, 9.6, 5000); // radiusも3倍
+    this.place(0, 8, -72);
     this.maxHp = 40;
 
-    // 体節(団子8個)
+    // 体節(団子8個) — 頭に合わせて大型化
     this.segments = [];
     for (let i = 0; i < 8; i++) {
-      const seg = new THREE.Mesh(new THREE.SphereGeometry(1.6 - i * 0.09, 16, 12), mat(i % 2 ? 0x8a5a2a : 0xb9834f));
+      const seg = new THREE.Mesh(new THREE.SphereGeometry((1.6 - i * 0.09) * 3, 16, 12), mat(i % 2 ? 0x8a5a2a : 0xb9834f));
       seg.position.copy(head.position);
       game.scene.add(seg);
       this.segments.push(seg);
@@ -805,24 +806,24 @@ export class Boss extends Enemy {
     const t = this.t;
     if (!this.entered) {
       this.place(this.lat, this.h, this.depth + 15 * dt);
-      if (this.depth >= -32) this.entered = true;
+      if (this.depth >= -48) this.entered = true;
     } else {
       const speed = this.rage ? 1.6 : 1.15;
       this.place(
-        Math.sin(t * 0.8 * speed) * 8,
-        5.2 + Math.sin(t * 1.2 * speed) * 3.2,
-        -32 + Math.sin(t * 0.48) * 6
+        Math.sin(t * 0.8 * speed) * 6,
+        7.5 + Math.sin(t * 1.2 * speed) * 2.5,
+        -48 + Math.sin(t * 0.48) * 5
       );
     }
     this.mesh.lookAt(this.game.player.pos);
 
-    // 体節が頭の軌跡を追う
+    // 体節が頭の軌跡を追う(巨大なので間隔広め)
     this.history.unshift(this.pos.clone());
-    if (this.history.length > 200) this.history.pop();
-    const gap = 9;
+    if (this.history.length > 280) this.history.pop();
+    const gap = 14;
     this.segments.forEach((s, i) => {
       const h = this.history[Math.min((i + 1) * gap, this.history.length - 1)];
-      if (h) s.position.lerp(h, 0.5);
+      if (h) s.position.lerp(h, 0.45);
       s.rotation.y += dt;
     });
 
