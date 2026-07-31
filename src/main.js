@@ -96,7 +96,10 @@ const game = {
     spr.scale.setScalar(1.5);
     spr.position.copy(pos);
     this.scene.add(spr);
-    this.pickups.push({ mesh: spr, t: 0 });
+    this.pickups.push({
+      mesh: spr, t: 0, magnet: false,
+      vel: new THREE.Vector3(),
+    });
   },
 
   onEnemyKilled(e, viaHoming) {
@@ -270,15 +273,33 @@ function updateEffects(dt) {
 // ================== 回復ハート ==================
 function updatePickups(dt) {
   const p = game.player;
+  const MAGNET_R = 9.5;   // この距離まで近づいたら吸い寄せ開始
+  const GET_R = 2.4;      // 回収判定(誘導後はほぼ確実)
   for (let i = game.pickups.length - 1; i >= 0; i--) {
     const pk = game.pickups[i];
     pk.t += dt;
-    const f = game.frameF(game.viewYaw);
-    pk.mesh.position.x += f.x * 9 * dt;
-    pk.mesh.position.z += f.z * 9 * dt;
-    pk.mesh.position.y += Math.sin(pk.t * 4) * dt * 1.5;
-    let done = pk.t > 12 || pk.mesh.position.distanceTo(p.pos) > 120;
-    if (!p.dead && pk.mesh.position.distanceTo(p.pos) < 1.8) {
+    const dist = pk.mesh.position.distanceTo(p.pos);
+
+    if (!p.dead && dist < MAGNET_R) pk.magnet = true;
+
+    if (pk.magnet && !p.dead) {
+      // プレイヤーへ加速誘導 → 絶対ゲット感
+      const to = p.pos.clone().sub(pk.mesh.position);
+      const d = Math.max(0.15, to.length());
+      to.multiplyScalar(1 / d);
+      const pull = 18 + (MAGNET_R - Math.min(d, MAGNET_R)) * 4.5; // 近いほど速い
+      pk.vel.lerp(to.multiplyScalar(pull), Math.min(1, dt * 10));
+      pk.mesh.position.addScaledVector(pk.vel, dt);
+      pk.mesh.scale.setScalar(1.5 + Math.sin(pk.t * 14) * 0.12);
+    } else {
+      const f = game.frameF(game.viewYaw);
+      pk.mesh.position.x += f.x * 9 * dt;
+      pk.mesh.position.z += f.z * 9 * dt;
+      pk.mesh.position.y += Math.sin(pk.t * 4) * dt * 1.5;
+    }
+
+    let done = !pk.magnet && (pk.t > 12 || dist > 120);
+    if (!p.dead && dist < GET_R) {
       if (p.hp < p.maxHp) { p.hp++; game.ui.setHearts(p.hp); }
       game.addScore(50);
       game.audio.heal();
