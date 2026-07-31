@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Dango, Shoyu, TeaDrone, Biplane, Negi, Boss, Udon, SanwariGirl, disposeObject, spawnDangoPack } from './enemies.js';
+import { Dango, Shoyu, TeaDrone, Biplane, Negi, Boss, Udon, SanwariGirl, disposeObject, spawnDangoPack, spawnBiplaneWingmen } from './enemies.js';
 
 const mat = c => new THREE.MeshToonMaterial({ color: c });
 const SCROLL = 28; // ペース 1.5倍スロー(旧42)
@@ -234,43 +234,37 @@ export class World {
     at(56.2, () => spawnDangoPack(g, 'swarm'));
     at(58.0, () => spawnDangoPack(g, 'edge'));
 
-    // ========== AREA3: ミックス開始・忙しさUP ==========
+    // ========== AREA3: 航空発祥・大型複葉機並走 ==========
     at(60.5, () => this.setPhase('park'));
     msg(60.8, 'AREA 3 ─ 航空記念公園');
-    // まだ複葉機単種ゾーン
-    at(62.0, () => {
-      new Biplane(g, 1, 5); new Biplane(g, -1, 7); new Biplane(g, 1, 3);
-      new Biplane(g, -1, 4); new Biplane(g, 1, 6); new Biplane(g, -1, 2.5);
-    });
+    msg(61.5, '会式一号風 複葉機編隊！！');
+    // 近くで並走する大型複葉機を複数
+    at(62.0, () => spawnBiplaneWingmen(g, 5));
     dir(66.0, L);
-    // ここからミックス
+    at(67.0, () => spawnBiplaneWingmen(g, 4));
     at(67.5, () => {
-      new Biplane(g, 1, 3); new Biplane(g, -1, 5); new Biplane(g, 1, 7);
       new TeaDrone(g, -7, 5); new TeaDrone(g, 7, 4);
       new SanwariGirl(g, -4, 5); new SanwariGirl(g, 0, 6); new SanwariGirl(g, 4, 4);
-      new SanwariGirl(g, -6, 7); new SanwariGirl(g, 6, 3);
     });
     dir(72.0, R);
+    at(73.0, () => spawnBiplaneWingmen(g, 6));
     at(73.5, () => {
-      new Biplane(g, -1, 4); new Biplane(g, 1, 5.5); new Biplane(g, -1, 7);
       new Udon(g, -5, 5); new Udon(g, 5, 6);
-      new SanwariGirl(g, -2, 6); new SanwariGirl(g, 3, 4); new SanwariGirl(g, -5, 5);
-      new SanwariGirl(g, 5, 6); new SanwariGirl(g, 0, 7); new SanwariGirl(g, 7, 3);
+      new SanwariGirl(g, -2, 6); new SanwariGirl(g, 3, 4); new SanwariGirl(g, 5, 6);
     });
     dir(78.0, FRONT);
-    at(79.5, () => {
+    at(79.0, () => {
+      spawnBiplaneWingmen(g, 4);
       spawnDangoPack(g, 'swarm');
-      new Biplane(g, 1, 6); new Biplane(g, -1, 4);
       new SanwariGirl(g, -4, 5); new SanwariGirl(g, 0, 6); new SanwariGirl(g, 4, 4);
-      new SanwariGirl(g, -7, 4); new SanwariGirl(g, 7, 5); new Negi(g, 0, -30); new Negi(g, -5, -28);
+      new Negi(g, 0, -30); new Negi(g, -5, -28);
     });
     dir(84.0, B);
+    at(85.0, () => spawnBiplaneWingmen(g, 5));
     at(85.5, () => {
-      new Biplane(g, -1, 3); new Biplane(g, 1, 7); new Biplane(g, -1, 6); new Biplane(g, 1, 4);
       new TeaDrone(g, 0, 8); new TeaDrone(g, -5, 4); new TeaDrone(g, 5, 5);
       new Negi(g, 0, -30); new Negi(g, -6, -25); new Negi(g, 6, -25);
       new SanwariGirl(g, -3, 5); new SanwariGirl(g, 3, 5); new SanwariGirl(g, 0, 7);
-      new SanwariGirl(g, 6, 3); new SanwariGirl(g, -6, 6); new SanwariGirl(g, 2, 4);
     });
 
     // ========== AREA4: 大乱戦ミックス ==========
@@ -284,7 +278,7 @@ export class World {
     });
     dir(94.0, L);
     at(95.5, () => {
-      new Biplane(g, 1, 5); new Biplane(g, -1, 5); new Biplane(g, 1, 7); new Biplane(g, -1, 3);
+      spawnBiplaneWingmen(g, 5);
       new TeaDrone(g, -6, 7); new TeaDrone(g, 6, 3); new TeaDrone(g, 0, 5);
       spawnDangoPack(g, 'edge');
       new SanwariGirl(g, 0, 5); new SanwariGirl(g, -5, 6); new SanwariGirl(g, 5, 4);
@@ -301,7 +295,7 @@ export class World {
     dir(108.0, R);
     at(109.5, () => {
       new Negi(g, -7, -25); new Negi(g, 7, -25); new Negi(g, 0, -35); new Negi(g, -3, -30); new Negi(g, 3, -30);
-      new Biplane(g, 1, 6); new Biplane(g, -1, 4); new Biplane(g, 1, 3); new Biplane(g, -1, 7);
+      spawnBiplaneWingmen(g, 4);
       new Shoyu(g, -5, 5); new Shoyu(g, 5, 6);
       new SanwariGirl(g, -4, 6); new SanwariGirl(g, 0, 5); new SanwariGirl(g, 4, 4);
       new SanwariGirl(g, -7, 5); new SanwariGirl(g, 7, 4); new SanwariGirl(g, 2, 7);

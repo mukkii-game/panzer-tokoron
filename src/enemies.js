@@ -557,43 +557,136 @@ export class SanwariGirl extends Enemy {
   }
 }
 
-// カイシキ一号 — 画面外はるか横から突入
+// 会式一号風の大型複葉機 — 所沢航空発祥の複葉機
+// mode: 'wingman' = プレイヤー近くで並走 / 'strafe' = 横から突入
 export class Biplane extends Enemy {
-  constructor(game, side, y) {
+  constructor(game, side = 1, y = 5, mode = 'wingman') {
     const g = new THREE.Group();
     const inner = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 1.5, 4, 10), mat(0xc8b485));
-    body.rotation.z = Math.PI / 2;
-    inner.add(body);
-    for (const h of [0.45, -0.15]) {
-      const wing = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.07, 2.9), mat(0xe8dcc0));
-      wing.position.set(0.15, h, 0);
+    const wood = mat(0xd4b896);
+    const linen = mat(0xf0e6d0);
+    const dark = mat(0x5a4030);
+
+    // 胴体(開放トラス風の細長い箱)
+    const fuse = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.55, 0.55), wood);
+    inner.add(fuse);
+    for (let i = 0; i < 5; i++) {
+      const rib = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.7, 0.7), dark);
+      rib.position.x = -1.4 + i * 0.7;
+      inner.add(rib);
+    }
+    // 複葉主翼(かなり大きい)
+    for (const wy of [1.15, -0.55]) {
+      const wing = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.12, 7.2), linen);
+      wing.position.set(0.2, wy, 0);
       inner.add(wing);
     }
-    const tailW = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.06, 1.1), mat(0xe8dcc0));
-    tailW.position.set(-1.0, 0.15, 0); inner.add(tailW);
-    const prop = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6), mat(0x6b4a20));
-    prop.scale.set(0.06, 1, 0.16);
-    prop.position.x = 1.05;
+    // 翼間支柱
+    for (const z of [-2.8, -1.2, 1.2, 2.8]) {
+      for (const s of [-1, 1]) {
+        const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.7, 6), dark);
+        strut.position.set(0.15 + s * 0.35, 0.3, z);
+        inner.add(strut);
+      }
+    }
+    // 前置き安定板(ファルマン系)
+    const canard = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.08, 2.4), linen);
+    canard.position.set(2.2, 0.6, 0);
+    inner.add(canard);
+    // 尾翼
+    const tailH = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.08, 2.0), linen);
+    tailH.position.set(-2.1, 0.35, 0);
+    inner.add(tailH);
+    const tailV = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.9, 0.08), linen);
+    tailV.position.set(-2.15, 0.85, 0);
+    inner.add(tailV);
+    // プロペラ(後押し風: 後方)
+    const prop = new THREE.Mesh(new THREE.SphereGeometry(1.1, 8, 6), dark);
+    prop.scale.set(0.07, 1, 0.18);
+    prop.position.set(-1.0, 0.15, 0);
     inner.add(prop);
-    inner.rotation.y = side > 0 ? Math.PI : 0;
+    // エンジン筒
+    const eng = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.4, 0.7, 10), mat(0x6a5a48));
+    eng.rotation.z = Math.PI / 2;
+    eng.position.set(-0.55, 0.15, 0);
+    inner.add(eng);
+    // 車輪
+    for (const z of [-0.85, 0.85]) {
+      const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.1, 8, 14), dark);
+      wheel.rotation.y = Math.PI / 2;
+      wheel.position.set(0.6, -1.05, z);
+      inner.add(wheel);
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.9, 6), dark);
+      leg.position.set(0.5, -0.55, z * 0.7);
+      leg.rotation.z = 0.25;
+      inner.add(leg);
+    }
+    // パイロット(ちび)
+    const pilot = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), mat(0xf5c89a));
+    pilot.position.set(0.9, 0.55, 0);
+    inner.add(pilot);
+
+    // 進行方向合わせ
+    if (mode === 'wingman') {
+      // 機首をレール進行(+F)へ。胴体はローカル+Xなので -90°
+      inner.rotation.y = -Math.PI / 2;
+    } else {
+      inner.rotation.y = side > 0 ? Math.PI : 0;
+    }
+    // かなり大きく
     g.add(inner);
-    super(game, g, 2, 1.3, 150);
+    g.scale.setScalar(1.85);
+    super(game, g, 4, 3.4, 280);
     this.prop = prop;
     this.inner = inner;
-    // はるか画面外から
-    this.place(side * 40, y, -50 - Math.random() * 20);
-    this.vLat = -side * (12 + Math.random() * 4);
-    this.cool = 0.5;
+    this.mode = mode;
+    this.cool = 0.8 + Math.random() * 0.6;
+
+    if (mode === 'wingman') {
+      // プレイヤーのかなり近くに出現して並走
+      const lat = side * (6 + Math.random() * 5);
+      const depth = -9 - Math.random() * 5;
+      this.place(lat, y, depth);
+      // 少し速い(+depth) / 少し遅い(-depth寄りに留まる)
+      this.pace = (Math.random() < 0.5 ? 1 : -1) * (0.35 + Math.random() * 0.55);
+      this.holdT = 0;
+      this.holdMax = 7 + Math.random() * 4;
+      this.baseLat = lat;
+      this.drift = (Math.random() - 0.5) * 1.2;
+    } else {
+      this.place(side * 38, y, -45 - Math.random() * 15);
+      this.vLat = -side * (10 + Math.random() * 4);
+    }
   }
   update(dt) {
     super.update(dt);
-    this.prop.rotation.x += dt * 30;
+    this.prop.rotation.x += dt * 28;
+    this.inner.rotation.z = Math.sin(this.t * 2.2) * 0.08;
+
+    if (this.mode === 'wingman') {
+      // 並走: 横にゆるく揺れ、前後はわずかに速い/遅い
+      this.holdT += dt;
+      const lat = this.baseLat + Math.sin(this.t * 0.7) * 1.4 + this.drift * this.t * 0.15;
+      let dSp = this.pace;
+      if (this.holdT > this.holdMax) dSp = 10; // 離脱
+      // 高度も自機付近でふわっと
+      const h = this.h + Math.sin(this.t * 1.1) * dt * 0.8;
+      this.place(lat, THREE.MathUtils.clamp(h, 2.5, 9), this.depth + dSp * dt);
+      this.cool -= dt;
+      if (this.cool <= 0 && this.holdT < this.holdMax) {
+        this.cool = 1.35 * this.game.relief();
+        shootAt(this.game, this.pos, 11, 0xffa03c, 0.6, 2.2);
+        this.game.audio.shoot();
+      }
+      if (this.depth > 18 || this.depth < -55 || Math.abs(this.lat) > 28) this.remove();
+      return;
+    }
+
+    // 旧: 横切り
     const inFrame = Math.abs(this.lat) < 16;
     const latSp = inFrame ? this.vLat * 1.35 : this.vLat * 0.6;
     const dSp = inFrame ? 5.5 : 2.4;
     this.place(this.lat + latSp * dt, this.h, this.depth + dSp * dt);
-    this.inner.rotation.z = Math.sin(this.t * 3) * 0.15;
     this.cool -= dt;
     if (this.cool <= 0 && Math.abs(this.lat) < 14) {
       this.cool = 1.0 * this.game.relief();
@@ -601,6 +694,18 @@ export class Biplane extends Enemy {
       this.game.audio.shoot();
     }
     if (Math.abs(this.lat) > 45 || this.depth > 18) this.remove();
+  }
+}
+
+/** 会式一号風の並走編隊 */
+export function spawnBiplaneWingmen(game, count = 4) {
+  for (let i = 0; i < count; i++) {
+    const side = i % 2 === 0 ? 1 : -1;
+    const y = 3.5 + (i % 3) * 1.8 + Math.random();
+    // わずかにずらして出現
+    setTimeout(() => {
+      if (game.state === 'play') new Biplane(game, side, y, 'wingman');
+    }, i * 220);
   }
 }
 
