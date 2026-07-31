@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Dango, Shoyu, TeaDrone, Biplane, Negi, Boss, disposeObject, spawnDangoPack } from './enemies.js';
 
 const mat = c => new THREE.MeshToonMaterial({ color: c });
-const SCROLL = 26; // 世界の流れ(奥→手前 +Z)
+const SCROLL = 26; // 地面が進む速さ(奥→手前 = frameF / scrollDir)
 
 // ===== 地面テクスチャ(明るめに描いて material.color で色調変化) =====
 function makeGroundTexture() {
@@ -258,31 +258,41 @@ export class World {
       this.eventIdx++;
     }
 
-    // 地面スクロールと色調
-    this.groundTex.offset.y -= (SCROLL / 66) * dt;
+    // 地面スクロール = viewYaw の進行方向(カメラ方位ではなくレール方向)
+    const F = g.scrollDir();
+    const R = g.frameR(g.viewYaw);
+    // PlaneGeometry: u→X, v→-Z なので進行 F に合わせて UV を流す
+    this.groundTex.offset.x -= F.x * (SCROLL / 66) * dt;
+    this.groundTex.offset.y -= F.z * (SCROLL / 66) * dt;
     if (this.tintT < 1) {
       this.tintT = Math.min(1, this.tintT + dt * 0.4);
       this.groundMat.color.lerpColors(this.tintFrom, this.tintTo, this.tintT);
     }
 
-    // 雲
+    // 雲(奥→手前へ F 方向)
     for (const c of this.clouds) {
-      c.position.z += SCROLL * 0.55 * dt;
-      if (c.position.z > 6) { // カメラに被る前にリサイクル
-        c.position.z = -140;
-        c.position.x = (Math.random() - 0.5) * 70;
+      c.position.x += F.x * SCROLL * 0.55 * dt;
+      c.position.z += F.z * SCROLL * 0.55 * dt;
+      const depth = c.position.x * F.x + c.position.z * F.z;
+      if (depth > 6) {
+        const lat = (Math.random() - 0.5) * 70;
+        const far = -140;
+        c.position.x = F.x * far + R.x * lat;
+        c.position.z = F.z * far + R.z * lat;
         c.position.y = 7 + Math.random() * 16;
       }
     }
 
-    // 風景スポーン
+    // 風景スポーン(奥の -F 側から)
     if (this.phase.scenery) {
       this.spawnTimer -= dt;
       if (this.spawnTimer <= 0) {
         this.spawnTimer = this.phase.interval * (0.7 + Math.random() * 0.6);
         const obj = this.phase.scenery();
         const side = Math.random() < 0.5 ? -1 : 1;
-        obj.position.set(side * (13 + Math.random() * 14), -0.5, -130);
+        const lat = side * (13 + Math.random() * 14);
+        const far = -130;
+        obj.position.set(F.x * far + R.x * lat, -0.5, F.z * far + R.z * lat);
         obj.rotation.y = Math.random() * Math.PI * 2;
         g.scene.add(obj);
         this.scenery.push(obj);
@@ -290,8 +300,10 @@ export class World {
     }
     for (let i = this.scenery.length - 1; i >= 0; i--) {
       const o = this.scenery[i];
-      o.position.z += SCROLL * dt;
-      if (o.position.z > 35) { g.scene.remove(o); disposeObject(o); this.scenery.splice(i, 1); }
+      o.position.x += F.x * SCROLL * dt;
+      o.position.z += F.z * SCROLL * dt;
+      const depth = o.position.x * F.x + o.position.z * F.z;
+      if (depth > 35) { g.scene.remove(o); disposeObject(o); this.scenery.splice(i, 1); }
     }
   }
 }

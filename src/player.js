@@ -277,13 +277,16 @@ export class Player {
 
     game.scene.add(this.group);
     this.group.position.copy(this.pos);
-    // 飛行機姿勢: 頭=進行方向(+Zローカル)、足=下(+Yローカル上向き)
-    this._fwd = new THREE.Vector3(0, 0, -1);
+    // 飛行機姿勢: 頭=地面スクロール方向(ローカル+Z=顔)、足=下(+Y)
+    this._fwd = new THREE.Vector3(0, 0, 1); // 初期は +Z = 手前(顔がこちら)
     this._up = new THREE.Vector3(0, 1, 0);
     this._right = new THREE.Vector3(1, 0, 0);
     this._m = new THREE.Matrix4();
     this.bank = 0;
     this.pitch = 0;
+    // タイトル直後から顔が見えるよう初期姿勢を確定
+    this._m.makeBasis(this._right, this._up, this._fwd);
+    this.group.quaternion.setFromRotationMatrix(this._m);
 
     this.shadow = new THREE.Mesh(
       new THREE.CircleGeometry(1.1, 20),
@@ -369,19 +372,19 @@ export class Player {
     if (this.shake > 0) this.shake -= dt;
 
     if (!this.dead && game.state !== 'clear') {
-      // ===== パンツァードラグーン式 =====
-      // 進行方向 = 画面手前(カメラ側 = +F)。頭(+Z)をそちらへ向け、足は下(+Y)。
-      // カメラが旋回しても「スクロール＝手前へ飛ぶ」なので常に顔が見える。
-      // カーソルは弾の向きだけに使い、体の向きには使わない。
-      const F = game.frameF(vy);
-      this._fwd.set(F.x, 0, F.z).normalize(); // 手前＝カメラ方向
+      // ===== 体の向き = 地面が進む方向(スクロール) =====
+      // カメラやカーソルには向けない。頭(+Z顔)＝scrollDir、足＝下。
+      // 初期scrollDir=+Z(画面手前)なので最初から顔がこちらを向く。
+      // 進行方向が変わると地面・カメラも同じヨーで回り、顔側から見続ける。
+      const S = game.scrollDir(); // 地面の進行方向
+      this._fwd.set(S.x, 0, S.z).normalize();
       this._up.set(0, 1, 0);
       this._right.crossVectors(this._up, this._fwd).normalize();
       this._up.crossVectors(this._fwd, this._right).normalize();
 
       // バンク/ピッチは進行軸まわりのみ(飛行機の傾き)
       const wantBank = THREE.MathUtils.clamp(-this.vel.x * 0.055, -0.55, 0.55);
-      const wantPitch = THREE.MathUtils.clamp(-this.vel.y * 0.035, -0.35, 0.35); // 上昇で少し機首上げ
+      const wantPitch = THREE.MathUtils.clamp(-this.vel.y * 0.035, -0.35, 0.35);
       this.bank += (wantBank - this.bank) * Math.min(1, dt * 6);
       this.pitch += (wantPitch - this.pitch) * Math.min(1, dt * 6);
 
@@ -392,7 +395,7 @@ export class Player {
       this._fwd.normalize(); this._up.normalize();
       this._right.crossVectors(this._up, this._fwd).normalize();
 
-      // ローカル +X=right, +Y=up, +Z=forward(顔・進行方向)
+      // ローカル +X=right, +Y=up, +Z=顔＝地面進行方向
       this._m.makeBasis(this._right, this._up, this._fwd);
       this.group.quaternion.setFromRotationMatrix(this._m);
     }

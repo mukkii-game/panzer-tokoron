@@ -12,11 +12,12 @@ import { disposeObject } from './enemies.js';
 // 自機の顔が見える前方斜め上から、奥(後方)から来る敵を見渡す。
 // ゲーム中デバッグキー: 4/6=ヨー, 8/2=ピッチ, 3/9=距離, 5=数値をconsoleに出力
 const CAM = {
-  yaw: 0.55,      // 斜め前寄り(顔が見えるクォータービュー)
-  pitch: 0.32,
-  dist: 14,
-  lookBack: 10,   // 注視点は自機より少し奥(敵方向)
-  lookUp: 0.6,
+  // 自機は地面スクロール方向(+F)を向く。カメラは顔側(+F寄り)の斜め上から奥を見る。
+  yaw: 0.48,      // 少し斜め(真正面すぎず、背中にもしない)
+  pitch: 0.30,
+  dist: 13,
+  lookBack: 12,   // 注視点は自機より奥(敵・スクロール先)
+  lookUp: 0.5,
   follow: 0.55,
   swayYaw: 0.16,
   swayPitch: 0.09,
@@ -57,8 +58,8 @@ const game = {
   boss: null,
   homingSalvo: null,
   player: null, weapons: null, world: null,
-  waveDir: 0,   // 敵ウェーブの方向(目標角)
-  viewYaw: 0,   // カメラ/自機のビュー回転(滑らかに追従)
+  waveDir: 0,   // 敵ウェーブ/レールの目標ヨー
+  viewYaw: 0,   // 地面スクロール・カメラの現在ヨー(滑らかに追従)
 
   // 敵の来る方向をセット(360度)。方向が変わったら告知
   setWaveDir(theta) {
@@ -72,9 +73,12 @@ const game = {
     this.ui.showStageMsg(label, 2000);
     this.audio.msg();
   },
-  // ビュー座標系の基底ベクトル
+  // レール座標系: F=地面が進む方向(奥→手前)。初期theta=0で +Z=画面手前向き。
+  // R=右。カメラはF側(顔側)から奥(-F)を見るので、最初から顔が見える。
   frameF(theta = this.waveDir) { return new THREE.Vector3(Math.sin(theta), 0, Math.cos(theta)); },
   frameR(theta = this.waveDir) { return new THREE.Vector3(Math.cos(theta), 0, -Math.sin(theta)); },
+  // 地面スクロール方向(自機の頭が向く方向)。カメラ方位ではなくワールドの進行。
+  scrollDir() { return this.frameF(this.viewYaw); },
 
   addScore(v) { this.score += v; this.ui.setScore(this.score); },
 
