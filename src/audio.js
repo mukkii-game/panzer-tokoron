@@ -103,9 +103,30 @@ export class AudioSys {
 
   lock(n) {
     if (!this.ctx) return;
-    if (this._playBuf('lock', 0.28, 0.9 + n * 0.06)) return;
     const t = this.ctx.currentTime;
-    this._osc('square', 700 + n * 90, t, 0.07, 0.1, this.sfxGain);
+    const step = Math.max(1, n | 0);
+    // 硬い「カカカッ」— 短いクリック + 金属/木を叩いた感
+    // 1) 超短いノイズの打撃音
+    this._noise(t, 0.022, 0.26, 4200, 'highpass');
+    // 2) 硬い矩形のカチッ(ロック数で少し高く)
+    const f0 = 880 + step * 95;
+    this._osc('square', f0, t, 0.028, 0.16, this.sfxGain, f0 * 0.45);
+    // 3) 短い高音ピンでキレを出す
+    this._osc('triangle', 2400 + step * 160, t, 0.032, 0.09, this.sfxGain, 700);
+    // 4) メタル衝撃サンプルがあれば一瞬だけ重ねる
+    const buf = this.buffers.hit;
+    if (buf) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      src.playbackRate.value = 1.55 + step * 0.06;
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0.28, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.055);
+      src.connect(g);
+      g.connect(this.sfxGain);
+      src.start(t);
+      try { src.stop(t + 0.06); } catch { /* ignore */ }
+    }
   }
 
   homing() {
