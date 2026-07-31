@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Dango, Shoyu, TeaDrone, Biplane, Negi, Boss, disposeObject, spawnDangoPack } from './enemies.js';
+import { Dango, Shoyu, TeaDrone, Biplane, Negi, Boss, Udon, SanwariGirl, disposeObject, spawnDangoPack } from './enemies.js';
 
 const mat = c => new THREE.MeshToonMaterial({ color: c });
 const SCROLL = 26; // 地面が進む速さ(奥→手前 = frameF / scrollDir)
@@ -194,25 +194,26 @@ export class World {
     // --- フェーズ2: プロペ通り商店街 ---
     at(36, () => this.setPhase('street'));
     msg(37, 'AREA 2 ─ プロペ通り商店街');
-    at(39, () => { new Shoyu(g, -6, 5); new Shoyu(g, 6, 5); });
+    at(39, () => { new Shoyu(g, -6, 5); new Shoyu(g, 6, 5); new Udon(g, 0, 5); });
+    at(42, () => { new SanwariGirl(g, -4, 5); new SanwariGirl(g, 5, 6); });
     at(44, () => { new Negi(g, -5, -30); new Negi(g, 5, -30); new Negi(g, 0, -40); });
     dir(46.5, L);
-    at(48, () => spawnDangoPack(g, 'swarm'));
+    at(48, () => { spawnDangoPack(g, 'swarm'); new Udon(g, -5, 4); new Udon(g, 5, 6); });
     dir(52.5, R);
-    at(54, () => { new Negi(g, -8, -25); new Negi(g, 8, -25); new Shoyu(g, -5, 4); new Shoyu(g, 5, 6); });
+    at(54, () => { new Negi(g, -8, -25); new Negi(g, 8, -25); new Shoyu(g, -5, 4); new Shoyu(g, 5, 6); new SanwariGirl(g, 0, 5.5); });
     dir(58.5, L);
     at(60, () => spawnDangoPack(g, 'edge'));
     dir(64.5, B);
-    at(66, () => { new Shoyu(g, 0, 5); new Negi(g, -6, -28); new Negi(g, 6, -28); spawnDangoPack(g, 'outback'); });
+    at(66, () => { new Shoyu(g, 0, 5); new Negi(g, -6, -28); new Negi(g, 6, -28); spawnDangoPack(g, 'outback'); new Udon(g, -3, 5); });
 
     // --- フェーズ3: 航空記念公園 ---
     at(72, () => this.setPhase('park'));
     msg(73, 'AREA 3 ─ 航空記念公園');
     at(75, () => { new Biplane(g, 1, 5); new Biplane(g, -1, 7); });
     dir(78.5, L);
-    at(80, () => { new Biplane(g, 1, 3); new Biplane(g, 1, 6); new TeaDrone(g, -7, 5); });
+    at(80, () => { new Biplane(g, 1, 3); new Biplane(g, 1, 6); new TeaDrone(g, -7, 5); new Udon(g, 4, 5); });
     dir(84.5, R);
-    at(86, () => { new Biplane(g, -1, 4); new Biplane(g, -1, 7); new Biplane(g, 1, 5.5); });
+    at(86, () => { new Biplane(g, -1, 4); new Biplane(g, -1, 7); new Biplane(g, 1, 5.5); new SanwariGirl(g, -2, 6); });
     dir(90.5, FRONT); // 正面へ大旋回!
     at(92, () => { spawnDangoPack(g, 'swarm'); new Biplane(g, 1, 6); });
     dir(96.5, B);
@@ -221,15 +222,15 @@ export class World {
     // --- フェーズ4: 米軍通信基地 ---
     at(105, () => this.setPhase('base'));
     msg(106, 'AREA 4 ─ 米軍通信基地');
-    at(108, () => { new Shoyu(g, -7, 6); new Shoyu(g, 7, 6); new Negi(g, 0, -30); });
+    at(108, () => { new Shoyu(g, -7, 6); new Shoyu(g, 7, 6); new Negi(g, 0, -30); new Udon(g, 0, 4); });
     dir(112.5, L);
-    at(114, () => { new Biplane(g, 1, 5); new Biplane(g, -1, 5); new TeaDrone(g, -6, 7); new TeaDrone(g, 6, 3); });
+    at(114, () => { new Biplane(g, 1, 5); new Biplane(g, -1, 5); new TeaDrone(g, -6, 7); new TeaDrone(g, 6, 3); new SanwariGirl(g, 0, 5); });
     dir(118.5, FRONT);
     at(120, () => spawnDangoPack(g, 'edge'));
     dir(124.5, R);
     at(126, () => { new Negi(g, -7, -25); new Negi(g, 7, -25); new Negi(g, 0, -35); new Biplane(g, 1, 6); new Biplane(g, -1, 4); });
     dir(130.5, B);
-    at(132, () => { new Shoyu(g, -6, 4); new Shoyu(g, 6, 7); new TeaDrone(g, 0, 6); spawnDangoPack(g, 'outback'); });
+    at(132, () => { new Shoyu(g, -6, 4); new Shoyu(g, 6, 7); new TeaDrone(g, 0, 6); spawnDangoPack(g, 'outback'); new Udon(g, -5, 6); new SanwariGirl(g, 4, 5); });
 
     // --- ボス(後方に戻して決戦) ---
     dir(138, B);

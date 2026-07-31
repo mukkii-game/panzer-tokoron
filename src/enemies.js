@@ -140,15 +140,21 @@ export class Dango extends Enemy {
   // mode: 'swarm' | 'outback' | 'edge'
   constructor(game, x, y, mode = 'swarm') {
     const g = new THREE.Group();
-    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 3.2, 8), mat(0xd8b57e));
+    // 大きくはっきり見える串団子
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 5.2, 8), mat(0xd8b57e));
     g.add(stick);
     for (let i = 0; i < 3; i++) {
-      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.52, 14, 12), mat(i === 1 ? 0x8a5a2a : 0xb9834f));
-      ball.position.y = (i - 1) * 0.95;
-      ball.scale.y = 0.9;
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.95, 16, 14), mat(i === 1 ? 0x8a5a2a : 0xb9834f));
+      ball.position.y = (i - 1) * 1.55;
+      ball.scale.y = 0.92;
       g.add(ball);
+      // 焼き目
+      const burn = new THREE.Mesh(new THREE.SphereGeometry(0.55, 10, 8), mat(0x5a3010));
+      burn.position.set(0.55, (i - 1) * 1.55, 0.35);
+      burn.scale.set(0.35, 0.7, 0.5);
+      g.add(burn);
     }
-    super(game, g, 1, 1.05);
+    super(game, g, 1, 1.85);
     this.mode = mode;
     this.phase = Math.random() * 7;
     this.baseLat = x;
@@ -261,22 +267,40 @@ export class Shoyu extends Enemy {
   }
 }
 
-// サヤマチャドローン — 画面端から入ってきて並走射撃
+// サヤマチャドローン — 大きめ湯呑み＋茶葉プロペラ、画面端から入って並走射撃
 export class TeaDrone extends Enemy {
   constructor(game, x, y) {
     const g = new THREE.Group();
-    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.55, 1.0, 14), mat(0x5f8f3e));
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 0.82, 1.55, 16), mat(0x4e7a32));
     g.add(cup);
-    const tea = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.08, 14), mat(0x9fce30));
-    tea.position.y = 0.5; g.add(tea);
-    const saucer = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.8, 0.14, 14), mat(0xdccbb0));
-    saucer.position.y = -0.62; g.add(saucer);
-    const rotor = new THREE.Mesh(new THREE.SphereGeometry(0.9, 10, 6), mat(0x3d6b28));
-    rotor.scale.set(1, 0.05, 0.16);
-    rotor.position.y = 0.95;
-    g.add(rotor);
-    super(game, g, 2, 1.15, 150);
-    this.rotor = rotor;
+    // 湯のみの模様帯
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(1.07, 1.07, 0.35, 16), mat(0xf2ead6));
+    band.position.y = 0.05; g.add(band);
+    const tea = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 0.92, 0.12, 16), mat(0xa8d63a));
+    tea.position.y = 0.78; g.add(tea);
+    const saucer = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.15, 0.18, 16), mat(0xdccbb0));
+    saucer.position.y = -0.9; g.add(saucer);
+    // 茶葉ローター(複数)
+    const rotorRoot = new THREE.Group();
+    rotorRoot.position.y = 1.25;
+    for (let i = 0; i < 3; i++) {
+      const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.55, 10, 8), mat(0x3d6b28));
+      leaf.scale.set(1.4, 0.12, 0.45);
+      leaf.rotation.y = (i * Math.PI * 2) / 3;
+      rotorRoot.add(leaf);
+    }
+    g.add(rotorRoot);
+    // 湯気
+    const steams = [];
+    for (let i = 0; i < 3; i++) {
+      const s = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45 }));
+      s.position.set((i - 1) * 0.25, 1.1 + i * 0.15, 0);
+      g.add(s);
+      steams.push(s);
+    }
+    super(game, g, 2, 1.55, 150);
+    this.rotor = rotorRoot;
+    this.steams = steams;
     const side = x >= 0 ? 1 : -1;
     this.place(side * 32, y, -80);
     this.targetLat = x;
@@ -286,7 +310,12 @@ export class TeaDrone extends Enemy {
   }
   update(dt) {
     super.update(dt);
-    this.rotor.rotation.y += dt * 20;
+    this.rotor.rotation.y += dt * 18;
+    for (let i = 0; i < this.steams.length; i++) {
+      const s = this.steams[i];
+      s.position.y = 1.15 + ((this.t * 1.4 + i * 0.4) % 1.2);
+      s.material.opacity = 0.5 * (1 - ((this.t * 1.4 + i * 0.4) % 1.2) / 1.2);
+    }
     const lat = THREE.MathUtils.lerp(this.lat, this.targetLat, Math.min(1, dt * 0.85));
     if (this.depth < -16) {
       this.place(lat, this.h, this.depth + depthSpeed(this.depth) * dt);
@@ -303,12 +332,217 @@ export class TeaDrone extends Enemy {
           const v = base.clone();
           v.addScaledVector(this.R, i * 0.22);
           v.normalize().multiplyScalar(10);
-          spawnBullet(this.game, this.pos, v, 0x86b829, 0.52);
+          spawnBullet(this.game, this.pos, v, 0x86b829, 0.58);
         }
         this.game.audio.shoot();
       }
     } else {
       this.place(this.lat, this.h, this.depth + 15 * dt);
+    }
+    if (this.depth > 16) this.remove();
+  }
+}
+
+// 肉汁うどん — 器から麺がはみ出してなびきながら飛来
+export class Udon extends Enemy {
+  constructor(game, x, y) {
+    const g = new THREE.Group();
+    // どんぶり
+    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 0.95, 1.1, 18), mat(0xf2f0ea));
+    g.add(bowl);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(1.32, 0.12, 8, 24), mat(0xe8e4dc));
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = 0.52;
+    g.add(rim);
+    // スープ
+    const broth = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.2, 16), mat(0xc48a3a));
+    broth.position.y = 0.35;
+    g.add(broth);
+    // 具(肉)
+    for (let i = 0; i < 4; i++) {
+      const meat = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.12, 0.4), mat(0x8a3a18));
+      const a = i * 1.5;
+      meat.position.set(Math.cos(a) * 0.45, 0.48, Math.sin(a) * 0.45);
+      meat.rotation.y = a;
+      g.add(meat);
+    }
+    // はみ出し麺(複数ストランド)
+    const noodles = [];
+    for (let i = 0; i < 7; i++) {
+      const strand = new THREE.Group();
+      const segs = [];
+      let py = 0.5;
+      for (let s = 0; s < 6; s++) {
+        const seg = new THREE.Mesh(
+          new THREE.CapsuleGeometry(0.09, 0.38, 3, 6),
+          mat(s % 2 ? 0xf0e0a8 : 0xe8d090)
+        );
+        seg.position.y = py;
+        strand.add(seg);
+        segs.push(seg);
+        py -= 0.42;
+      }
+      const ang = (i / 7) * Math.PI * 2;
+      strand.position.set(Math.cos(ang) * 0.7, 0.2, Math.sin(ang) * 0.55);
+      strand.rotation.z = 0.55 + (i % 3) * 0.15;
+      strand.rotation.y = ang;
+      g.add(strand);
+      noodles.push({ root: strand, segs, phase: i * 0.7 });
+    }
+    // ねぎトッピング
+    for (let i = 0; i < 5; i++) {
+      const n = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.25, 6), mat(0x6fb84a));
+      n.position.set((Math.random() - 0.5) * 1.2, 0.55, (Math.random() - 0.5) * 1.0);
+      n.rotation.z = (Math.random() - 0.5) * 0.8;
+      g.add(n);
+    }
+    super(game, g, 3, 1.7, 220);
+    this.noodles = noodles;
+    this.place(x, y, -100 - Math.random() * 20);
+    this.baseLat = x;
+    this.cool = 1.5 + Math.random();
+    this.holdT = 0;
+  }
+  update(dt) {
+    super.update(dt);
+    // 麺がなびく
+    for (const n of this.noodles) {
+      const wave = Math.sin(this.t * 7 + n.phase) * 0.35;
+      n.root.rotation.z = 0.5 + wave;
+      n.root.rotation.x = Math.sin(this.t * 5 + n.phase * 1.3) * 0.25;
+      n.segs.forEach((seg, i) => {
+        seg.rotation.z = Math.sin(this.t * 9 + n.phase + i * 0.6) * 0.4;
+        seg.rotation.x = Math.cos(this.t * 7 + n.phase + i) * 0.25;
+      });
+    }
+    this.mesh.rotation.y += dt * 0.8;
+
+    if (this.depth < -14) {
+      this.place(
+        this.baseLat + Math.sin(this.t * 1.4) * 2.2,
+        this.h + Math.sin(this.t * 2) * 0.3,
+        this.depth + depthSpeed(this.depth) * dt
+      );
+    } else if (this.holdT < 3.2) {
+      this.holdT += dt;
+      this.place(this.baseLat + Math.sin(this.t * 1.6) * 2.5, this.h, this.depth + 0.6 * dt);
+      this.cool -= dt;
+      if (this.cool <= 0) {
+        this.cool = 2.0 * this.game.relief();
+        // 飛び散る肉汁弾
+        for (let i = -1; i <= 1; i++) {
+          const v = this.game.player.pos.clone().sub(this.pos).normalize();
+          v.addScaledVector(this.R, i * 0.28);
+          v.y += 0.15;
+          v.normalize().multiplyScalar(9);
+          spawnBullet(this.game, this.pos.clone().add(new THREE.Vector3(0, 0.4, 0)), v, 0xc48a3a, 0.5);
+        }
+        this.game.audio.shoot();
+      }
+    } else {
+      this.place(this.lat, this.h, this.depth + 15 * dt);
+    }
+    if (this.depth > 16) this.remove();
+  }
+}
+
+// 「3割うまい！」女の子 — 常にプレイヤー側を見る2Dビルボード
+let sanwariTex = null;
+let shoutTex = null;
+function getSanwariTex() {
+  if (sanwariTex) return sanwariTex;
+  sanwariTex = new THREE.TextureLoader().load('assets/sanwari.png');
+  sanwariTex.colorSpace = THREE.SRGBColorSpace;
+  return sanwariTex;
+}
+function getShoutTex() {
+  if (shoutTex) return shoutTex;
+  const cv = document.createElement('canvas');
+  cv.width = 512; cv.height = 160;
+  const c = cv.getContext('2d');
+  c.clearRect(0, 0, 512, 160);
+  c.fillStyle = '#fff8e8';
+  c.strokeStyle = '#e83a7a';
+  c.lineWidth = 10;
+  c.beginPath();
+  if (c.roundRect) c.roundRect(20, 10, 470, 100, 28);
+  else { c.rect(20, 10, 470, 100); }
+  c.fill(); c.stroke();
+  c.beginPath();
+  c.moveTo(220, 108); c.lineTo(250, 148); c.lineTo(280, 108);
+  c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = '#ff5a20';
+  c.font = 'bold 58px "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif';
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillText('3割うまい！！', 256, 62);
+  shoutTex = new THREE.CanvasTexture(cv);
+  shoutTex.colorSpace = THREE.SRGBColorSpace;
+  return shoutTex;
+}
+
+export class SanwariGirl extends Enemy {
+  constructor(game, x, y) {
+    const g = new THREE.Group();
+    const girl = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: getSanwariTex(),
+      transparent: true,
+      depthWrite: false,
+    }));
+    girl.scale.set(5.2, 5.2, 1);
+    g.add(girl);
+    const shout = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: getShoutTex(),
+      transparent: true,
+      depthWrite: false,
+    }));
+    shout.scale.set(4.2, 1.3, 1);
+    shout.position.y = 3.2;
+    g.add(shout);
+    super(game, g, 4, 2.4, 350);
+    this.girl = girl;
+    this.shout = shout;
+    this.place(x, y, -110);
+    this.baseLat = x;
+    this.cool = 1.8;
+    this.holdT = 0;
+  }
+  update(dt) {
+    super.update(dt);
+    const pulse = 1 + Math.sin(this.t * 6) * 0.06;
+    this.girl.scale.setScalar(5.2 * pulse);
+    const shoutOn = Math.sin(this.t * 3.2) > -0.2;
+    this.shout.visible = shoutOn;
+    if (shoutOn) {
+      const s = 1 + Math.abs(Math.sin(this.t * 8)) * 0.12;
+      this.shout.scale.set(4.2 * s, 1.3 * s, 1);
+      this.shout.position.y = 3.1 + Math.sin(this.t * 10) * 0.15;
+    }
+
+    if (this.depth < -18) {
+      this.place(
+        this.baseLat + Math.sin(this.t * 1.2) * 1.8,
+        this.h,
+        this.depth + depthSpeed(this.depth) * 0.9 * dt
+      );
+    } else if (this.holdT < 5) {
+      this.holdT += dt;
+      this.place(this.baseLat + Math.sin(this.t * 1.5) * 3, this.h + Math.sin(this.t * 2) * 0.4, this.depth + 0.5 * dt);
+      this.cool -= dt;
+      if (this.cool <= 0) {
+        this.cool = 1.8 * this.game.relief();
+        // 「うまい」気合弾(ピンク)
+        for (let i = -2; i <= 2; i++) {
+          const v = this.game.player.pos.clone().sub(this.pos).normalize();
+          v.addScaledVector(this.R, i * 0.18);
+          v.normalize().multiplyScalar(11);
+          spawnBullet(this.game, this.pos, v, 0xff4d8a, 0.48);
+        }
+        this.game.audio.shoot();
+        this.game.audio.msg();
+      }
+    } else {
+      this.place(this.lat, this.h, this.depth + 14 * dt);
     }
     if (this.depth > 16) this.remove();
   }
@@ -392,9 +626,8 @@ export class Negi extends Enemy {
 /** 団子8体ウェーブを一括スポーン */
 export function spawnDangoPack(game, mode = 'swarm') {
   for (let i = 0; i < 8; i++) {
-    const lat = -10.5 + i * 3;
-    const h = 2.5 + (i % 3) * 2.2 + Math.random();
-    // 少しずつ遅れて奥から来る感じに depth 差は constructor 内のランダムで
+    const lat = -12 + i * 3.4;
+    const h = 2.8 + (i % 3) * 2.4 + Math.random();
     new Dango(game, lat, h, mode);
   }
 }
