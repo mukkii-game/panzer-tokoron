@@ -214,7 +214,7 @@ export class Player {
   takeHit(game) {
     if (this.invuln > 0 || this.dead) return;
     this.hp--;
-    this.invuln = 2;
+    this.invuln = 2.5;
     this.shake = 0.7;
     game.audio.hit();
     game.ui.setHearts(this.hp);

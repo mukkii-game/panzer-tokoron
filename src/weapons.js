@@ -71,7 +71,8 @@ export class Weapons {
       const sx = (v.x + 1) * 0.5 * innerWidth;
       const sy = (-v.y + 1) * 0.5 * innerHeight;
       const dist = Math.hypot(sx - aim.x, sy - aim.y);
-      const range = Math.min(innerWidth, innerHeight) * 0.09 + 30;
+      let range = Math.min(innerWidth, innerHeight) * 0.09 + 30;
+      if (game.input.isTouch) range *= 1.7; // 指操作は判定を甘く
       if (dist < range) {
         e.setLocked(true);
         this.locks.push(e);

@@ -63,6 +63,7 @@ export class Enemy {
     spawnExplosion(this.game, this.pos, this.radius);
     this.game.audio.boom();
     this.game.onEnemyKilled(this, viaHoming);
+    if (Math.random() < 0.15) this.game.spawnHeart(this.pos); // 回復ドロップ
     this.remove();
   }
   remove() {
@@ -118,13 +119,13 @@ export class Dango extends Enemy {
     g.position.set(x, y, -85);
     super(game, g, 1, 1.05);
     this.baseX = x;
-    this.speed = 22 + Math.random() * 6;
+    this.speed = 19 + Math.random() * 5;
     this.phase = Math.random() * 7;
   }
   update(dt) {
     super.update(dt);
     this.pos.z += this.speed * dt;
-    this.pos.x = this.baseX + Math.sin(this.t * 2 + this.phase) * 2.2;
+    this.pos.x = this.baseX + Math.sin(this.t * 2 + this.phase) * 1.6;
     this.mesh.rotation.z += dt * 4;
     if (this.pos.z > 14) this.remove();
   }
@@ -158,14 +159,14 @@ export class Shoyu extends Enemy {
       this.mesh.rotation.z = Math.sin(this.t * 8) * 0.12; // シェイク
       this.cool -= dt;
       if (this.cool <= 0) {
-        this.cool = 2.6;
-        // 山なり醤油弾
+        this.cool = 2.6 * this.game.relief();
+        // 山なり醤油弾(大きめ・ゆっくりで軌道を読みやすく)
         const v = this.game.player.pos.clone().sub(this.pos);
-        const time = 1.4;
-        const g0 = 10;
+        const time = 1.75;
+        const g0 = 9;
         v.multiplyScalar(1 / time);
         v.y += g0 * time * 0.5;
-        spawnBullet(this.game, this.pos, v, 0x3b1206, 0.36, g0);
+        spawnBullet(this.game, this.pos, v, 0x3b1206, 0.5, g0);
         this.game.audio.shoot();
       }
     }
@@ -203,11 +204,11 @@ export class TeaDrone extends Enemy {
       if (Math.abs(this.pos.x) > 13) this.dir *= -1;
       this.cool -= dt;
       if (this.cool <= 0) {
-        this.cool = 2.8;
+        this.cool = 2.8 * this.game.relief();
         const base = this.game.player.pos.clone().sub(this.pos).normalize();
         for (let i = -1; i <= 1; i++) {
           const v = base.clone();
-          v.x += i * 0.22; v.normalize().multiplyScalar(11);
+          v.x += i * 0.22; v.normalize().multiplyScalar(10);
           spawnBullet(this.game, this.pos, v, 0x86b829, 0.3);
         }
         this.game.audio.shoot();
@@ -250,7 +251,7 @@ export class Biplane extends Enemy {
     this.mesh.rotation.z = Math.sin(this.t * 3) * 0.15;
     this.cool -= dt;
     if (this.cool <= 0 && Math.abs(this.pos.x) < 15) {
-      this.cool = 1.5;
+      this.cool = 1.5 * this.game.relief();
       shootAt(this.game, this.pos, 12.5, 0xffa03c, 0.28, 2.5);
       this.game.audio.shoot();
     }
@@ -370,7 +371,7 @@ export class Boss extends Enemy {
     if (this.entered) {
       this.cool -= dt;
       if (this.cool <= 0) {
-        this.cool = this.rage ? 1.5 : 2.4;
+        this.cool = (this.rage ? 1.5 : 2.4) * this.game.relief();
         const n = this.rage ? 7 : 5;
         const base = this.game.player.pos.clone().sub(this.pos).normalize();
         for (let i = 0; i < n; i++) {

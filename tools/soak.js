@@ -115,7 +115,7 @@ while (Date.now() - t0 < 6 * 60 * 1000) {
   }));
   console.log(JSON.stringify(st));
   if (process.env.HEAL === '1') await page.evaluate(() => { if (game.player.hp > 0) { game.player.hp = 5; game.ui.setHearts(5); } });
-  await page.screenshot({ path: OUT + `soak_${String(shot++).padStart(2, '0')}.png` });
+  // 注意: ヘッドレスEdgeでは page.screenshot() がrAFを凍結させるため、途中スクショは撮らない
   if (st.state === 'clear' || st.state === 'over') break;
 }
 const final = await page.evaluate(() => ({ state: game.state, score: game.score, hp: game.player.hp }));

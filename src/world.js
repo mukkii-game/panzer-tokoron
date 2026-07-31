@@ -144,7 +144,7 @@ export class World {
     this.clouds = [];
     for (let i = 0; i < 14; i++) {
       const c = makeCloud();
-      c.position.set((Math.random() - 0.5) * 70, 7 + Math.random() * 16, -140 + Math.random() * 160);
+      c.position.set((Math.random() - 0.5) * 70, 7 + Math.random() * 16, -140 + Math.random() * 145);
       scene.add(c);
       this.clouds.push(c);
     }
@@ -244,7 +244,7 @@ export class World {
     // 雲
     for (const c of this.clouds) {
       c.position.z += SCROLL * 0.55 * dt;
-      if (c.position.z > 25) {
+      if (c.position.z > 6) { // カメラに被る前にリサイクル
         c.position.z = -140;
         c.position.x = (Math.random() - 0.5) * 70;
         c.position.y = 7 + Math.random() * 16;

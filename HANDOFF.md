@@ -30,14 +30,23 @@
 - `node tools/soak.js` — ボット注入で全編自動プレイ+FPS計測
 - **注意**: puppeteer.launchはこの環境で失敗する。Edgeを`--remote-debugging-port=0`で自前spawnし、プロファイルの`DevToolsActivePort`からポートを読んで`puppeteer.connect`する方式(各スクリプト参照)
 - **注意**: ヘッドレスEdgeはバックグラウンドタブのrAFを止める。`--disable-backgrounding-occluded-windows --disable-features=CalculateNativeWinOcclusion` 必須
+- **重要な罠**: ヘッドレスEdgeで `page.screenshot()` を撮ると、その後 rAF が凍結してゲームループが止まる(3回再現)。長時間テストでは途中スクショ禁止。スクショが要るときは撮影間隔を数秒以内にするか、終了時のみ撮る
+
+## 検証済み
+
+- 全編完走(fastrun.js): タイトル→AREA1-4→ボス→クリア、エラーゼロ、ジオメトリリークなし
+- 実測FPS 60安定(1280x720、敵フル出現時)
+- スマホ(390x844タッチエミュ): スティック移動/照準連射/ロックオン/撃破 全PASS
+- 機能テスト(playtest.js) 7項目PASS
 
 ## 直近の既知課題・残タスク
 
-- [ ] soak全編テストの完走確認(FPS/難易度バランス見る)
-- [ ] スマホ(タッチエミュレーション)での動作確認
+- [ ] **ユーザー実機での体感難易度確認**(ボット基準で調整済みだが人間の体感は未確認)。救済: ハートドロップ15%/無敵2.5秒/ピンチ時は敵攻撃間隔1.45倍(main.jsのrelief())
+- [ ] BGM/効果音の実機試聴(ヘッドレスでは聴けないためコードレビューのみ)
 - [ ] 権利面: トコろんは所沢市公式マスコット。公開(GitHub Pages等)前にユーザーへ確認
-- [ ] 表情の露出をもっと増やす(現状: 被弾panic/ピンチpinch/発射angry/コンボjoy/クリアjoy/ゲームオーバーdizzy)
-- バグ修正済み: enemies.jsのTeaDrone/Biplaneで`super()`前に`this`アクセスでクラッシュ→修正済み
+- [ ] 表情の露出をもっと増やす(現状: 被弾panic/ピンチpinch/発射angry/コンボjoy/回復joy/クリアjoy/ゲームオーバーdizzy)
+- 修正済みバグ: TeaDrone/Biplaneの`super()`前`this`アクセス / GPUジオメトリリーク / 雲がカメラを覆う / 縦画面で自機が大きすぎ
+- **ヘッドレスEdge固有**(実害なし): 起動15秒前後でrAF凍結、たまに勝手にページreload。テストはgame.tick()手動駆動のfastrun.jsを使うこと
 
 ## トークン節約Tips(後続AIへ)
 

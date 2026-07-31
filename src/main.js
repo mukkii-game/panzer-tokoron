@@ -40,6 +40,7 @@ const game = {
   enemies: [],
   enemyBullets: [],
   effects: [],
+  pickups: [],
   score: 0,
   state: 'title',
   time: 0,
@@ -48,6 +49,23 @@ const game = {
   player: null, weapons: null, world: null,
 
   addScore(v) { this.score += v; this.ui.setScore(this.score); },
+
+  // ピンチ時は敵の攻撃間隔を伸ばす(見えない救済)
+  relief() { return this.player && this.player.hp <= 2 ? 1.45 : 1; },
+
+  spawnHeart(pos) {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+    const c = cv.getContext('2d');
+    c.font = '52px serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText('❤️', 32, 36);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+    spr.scale.setScalar(1.5);
+    spr.position.copy(pos);
+    this.scene.add(spr);
+    this.pickups.push({ mesh: spr, t: 0 });
+  },
 
   onEnemyKilled(e, viaHoming) {
     this.addScore(e.score);
@@ -107,9 +125,13 @@ function updateCamera(dt) {
   const yaw = THREE.MathUtils.clamp(CAM.yaw + ax * CAM.swayYaw, -1.2, 1.2);
   const pitch = THREE.MathUtils.clamp(CAM.pitch - ay * CAM.swayPitch, 0.08, 1.05);
 
-  const tx = cx + Math.sin(yaw) * Math.cos(pitch) * CAM.dist;
-  const ty = cy + Math.sin(pitch) * CAM.dist;
-  const tz = Math.cos(yaw) * Math.cos(pitch) * CAM.dist;
+  // 縦画面(スマホ)では距離を伸ばして視界を確保
+  const aspect = innerWidth / innerHeight;
+  const dist = CAM.dist * (aspect >= 1 ? 1 : 1 + (1 - aspect) * 0.9);
+
+  const tx = cx + Math.sin(yaw) * Math.cos(pitch) * dist;
+  const ty = cy + Math.sin(pitch) * dist;
+  const tz = Math.cos(yaw) * Math.cos(pitch) * dist;
   const k = Math.min(1, dt * 5);
   camera.position.x += (tx - camera.position.x) * k;
   camera.position.y += (ty - camera.position.y) * k;
@@ -180,13 +202,43 @@ function updateEffects(dt) {
   }
 }
 
+// ================== 回復ハート ==================
+function updatePickups(dt) {
+  const p = game.player;
+  for (let i = game.pickups.length - 1; i >= 0; i--) {
+    const pk = game.pickups[i];
+    pk.t += dt;
+    pk.mesh.position.z += 9 * dt;
+    pk.mesh.position.y += Math.sin(pk.t * 4) * dt * 1.5;
+    let done = pk.mesh.position.z > 15 || pk.t > 12;
+    if (!p.dead && pk.mesh.position.distanceTo(p.pos) < 1.8) {
+      if (p.hp < p.maxHp) { p.hp++; game.ui.setHearts(p.hp); }
+      game.addScore(50);
+      game.audio.heal();
+      p.setExpression('joy', 1.0);
+      done = true;
+    }
+    if (done) {
+      scene.remove(pk.mesh);
+      pk.mesh.material.map.dispose();
+      pk.mesh.material.dispose();
+      game.pickups.splice(i, 1);
+    }
+  }
+}
+
 // ================== メインループ ==================
 const clock = new THREE.Clock();
 let touchModeSet = false;
 
 function loop() {
   requestAnimationFrame(loop);
-  const dt = Math.min(clock.getDelta(), 0.05);
+  if (game.manual) return; // テスト駆動中はrAF側を止める
+  tick(Math.min(clock.getDelta(), 0.05));
+}
+
+// 1フレーム分の更新。テストからは game.tick(dt, false) で高速駆動できる
+function tick(dt, render = true) {
   game.time += dt;
 
   if (game.input.isTouch && !touchModeSet) { touchModeSet = true; game.ui.setTouchMode(true); }
@@ -208,6 +260,7 @@ function loop() {
     }
     updateCollisions(dt);
     updateEffects(dt);
+    updatePickups(dt);
   } else {
     // タイトル画面: トコろんがふわふわ
     game.player.update(dt, game);
@@ -220,8 +273,9 @@ function loop() {
   game.ui.setReticle(game.input.aim.x, game.input.aim.y, game.input.locking, inPlay);
   game.ui.setStick(game.input.stick);
 
-  renderer.render(scene, camera);
+  if (render) renderer.render(scene, camera);
 }
+game.tick = tick;
 loop();
 
 // ================== 画面遷移 ==================

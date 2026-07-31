@@ -46,6 +46,7 @@ export class AudioSys {
   bigBoom(){ const t = this.ctx.currentTime; this._noise(t, 0.8, 0.4, 500, 'lowpass'); this._osc('sine', 120, t, 0.9, 0.4, this.master, 30); }
   hit()    { const t = this.ctx.currentTime; this._osc('sawtooth', 200, t, 0.25, 0.25, this.master, 60); this._noise(t, 0.15, 0.2, 3000); }
   msg()    { const t = this.ctx.currentTime; this._osc('triangle', 1047, t, 0.12, 0.15); this._osc('triangle', 1319, t + 0.12, 0.2, 0.15); }
+  heal()   { const t = this.ctx.currentTime; [523, 659, 784, 1047].forEach((f, i) => this._osc('triangle', f, t + i * 0.07, 0.15, 0.14)); }
 
   _jingle(notes, type = 'square') {
     const t = this.ctx.currentTime;
