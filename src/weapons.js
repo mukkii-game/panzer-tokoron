@@ -135,7 +135,6 @@ export class Weapons {
     const { game } = this;
     const from = game.player.pos.clone();
     const g = new THREE.Group();
-    // 大きめピンク玉 + グロー
     const head = new THREE.Mesh(
       new THREE.SphereGeometry(0.55, 12, 10),
       new THREE.MeshBasicMaterial({ color: 0xff6aa0 })
@@ -148,23 +147,28 @@ export class Weapons {
     g.position.copy(from);
     game.scene.add(g);
 
-    // 大きく横に散らしてから曲線で巻き込む
+    // サーカス風: 左右交互に大きく膨らませてから巻き込む
     const R = game.frameR(game.viewYaw);
     const F = game.frameF(game.viewYaw);
-    const side = (Math.random() < 0.5 ? -1 : 1) * (18 + Math.random() * 18);
-    const up = 4 + Math.random() * 16;
+    const fan = lockTotal <= 1 ? 0 : (lockIndex / (lockTotal - 1)) * 2 - 1; // -1〜+1
+    const sideSign = lockIndex % 2 === 0 ? 1 : -1;
+    const side = sideSign * (28 + Math.abs(fan) * 22 + Math.random() * 14);
+    const up = (lockIndex % 3 === 1 ? -1 : 1) * (10 + Math.random() * 22);
+    const towardCam = -(8 + Math.random() * 10); // いったん手前に膨らむ
     const vel = new THREE.Vector3()
       .addScaledVector(R, side)
       .add(new THREE.Vector3(0, up, 0))
-      .addScaledVector(F, -4);
-    // ロック数・何発目かで色分け(途中から色づく)
+      .addScaledVector(F, towardCam);
     const hue = LOCK_SMOKE[Math.min(lockTotal - 1, LOCK_SMOKE.length - 1)];
     const accent = LOCK_SMOKE[Math.min(lockIndex, LOCK_SMOKE.length - 1)];
     this.missiles.push({
-      mesh: g, vel, target, life: 4.5, age: 0, speed: 52, emit: 0,
+      mesh: g, vel, target, life: 5.2, age: 0, speed: 48, emit: 0,
       puffBase: 0xffffff,
       puffHue: hue,
       puffAccent: accent,
+      spinPhase: Math.random() * Math.PI * 2,
+      spinDir: sideSign,
+      swell: 1.15 + Math.random() * 0.45, // 膨らみ係数
     });
   }
 
@@ -243,19 +247,29 @@ export class Weapons {
       }
     }
 
-    // ===== ホーミング弾(大きな弧 + もくもく雲) =====
+    // ===== ホーミング弾(サーカス風の大きく膨らむ弧) =====
     for (let i = this.missiles.length - 1; i >= 0; i--) {
       const ms = this.missiles[i];
       ms.life -= dt;
       ms.age += dt;
       if (ms.target && ms.target.alive) {
         const to = this._v.copy(ms.target.pos).sub(ms.mesh.position).normalize().multiplyScalar(ms.speed);
-        // 最初ゆるく→後半キュッと巻き込む = 大きな曲線
-        const gain = Math.min(11, 1.2 + ms.age * 8);
+        // 序盤はほぼ曲がらず膨らみ、中盤からゆっくり、終盤で巻き込み
+        let gain;
+        if (ms.age < 0.55) gain = 0.35;           // 起動: ほぼ直進で膨らむ
+        else if (ms.age < 1.35) gain = 1.1 + (ms.age - 0.55) * 2.2;
+        else gain = Math.min(14, 3.5 + (ms.age - 1.35) * 9);
         ms.vel.lerp(to, Math.min(1, dt * gain));
-        // 軌道に少し横揺れを足して生き物っぽく
-        ms.vel.x += Math.sin(ms.age * 9 + i) * dt * 8;
-        ms.vel.y += Math.cos(ms.age * 7 + i) * dt * 5;
+
+        // 皿回し風のうねり(膨らみ中は強く、収束で弱く)
+        const swellT = Math.max(0, 1 - ms.age / 2.2) * (ms.swell || 1.2);
+        const ph = ms.age * 6.5 + (ms.spinPhase || 0);
+        const sd = ms.spinDir || 1;
+        const R = game.frameR(game.viewYaw);
+        const F = game.frameF(game.viewYaw);
+        ms.vel.addScaledVector(R, Math.sin(ph) * dt * 38 * swellT * sd);
+        ms.vel.y += Math.cos(ph * 0.85) * dt * 28 * swellT;
+        ms.vel.addScaledVector(F, Math.sin(ph * 0.5) * dt * 12 * swellT);
       }
       ms.mesh.position.addScaledVector(ms.vel, dt);
       if (ms.vel.lengthSq() > 0.01) ms.mesh.lookAt(ms.mesh.position.clone().add(ms.vel));
