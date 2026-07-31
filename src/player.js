@@ -369,33 +369,30 @@ export class Player {
     if (this.shake > 0) this.shake -= dt;
 
     if (!this.dead && game.state !== 'clear') {
-      // ===== パンツァードラグーン式: 常にスクロール進行方向を向く =====
-      // 進行方向 = 奥へ(-F)。カメラが回っても「頭が前・足が下」
+      // ===== パンツァードラグーン式 =====
+      // 進行方向 = 画面手前(カメラ側 = +F)。頭(+Z)をそちらへ向け、足は下(+Y)。
+      // カメラが旋回しても「スクロール＝手前へ飛ぶ」なので常に顔が見える。
+      // カーソルは弾の向きだけに使い、体の向きには使わない。
       const F = game.frameF(vy);
-      // ワールド前方(頭の向き): 奥方向
-      this._fwd.set(-F.x, 0, -F.z).normalize();
-      // ワールド上(足の反対): 常にほぼ真上
+      this._fwd.set(F.x, 0, F.z).normalize(); // 手前＝カメラ方向
       this._up.set(0, 1, 0);
-      // 右ベクトル
       this._right.crossVectors(this._up, this._fwd).normalize();
       this._up.crossVectors(this._fwd, this._right).normalize();
 
-      // バンク(横移動)・ピッチ(上下)は前進軸まわり/右軸まわりにだけかける
+      // バンク/ピッチは進行軸まわりのみ(飛行機の傾き)
       const wantBank = THREE.MathUtils.clamp(-this.vel.x * 0.055, -0.55, 0.55);
-      const wantPitch = THREE.MathUtils.clamp(this.vel.y * 0.035, -0.35, 0.35);
+      const wantPitch = THREE.MathUtils.clamp(-this.vel.y * 0.035, -0.35, 0.35); // 上昇で少し機首上げ
       this.bank += (wantBank - this.bank) * Math.min(1, dt * 6);
       this.pitch += (wantPitch - this.pitch) * Math.min(1, dt * 6);
 
-      // バンク: forward軸まわりに up/right を回転
       this._up.applyAxisAngle(this._fwd, this.bank);
       this._right.applyAxisAngle(this._fwd, this.bank);
-      // ピッチ: right軸まわりに forward/up を回転
       this._fwd.applyAxisAngle(this._right, this.pitch);
       this._up.applyAxisAngle(this._right, this.pitch);
       this._fwd.normalize(); this._up.normalize();
       this._right.crossVectors(this._up, this._fwd).normalize();
 
-      // ローカル +X=right, +Y=up, +Z=forward(顔) になる行列
+      // ローカル +X=right, +Y=up, +Z=forward(顔・進行方向)
       this._m.makeBasis(this._right, this._up, this._fwd);
       this.group.quaternion.setFromRotationMatrix(this._m);
     }

@@ -12,19 +12,18 @@ import { disposeObject } from './enemies.js';
 // 自機の顔が見える前方斜め上から、奥(後方)から来る敵を見渡す。
 // ゲーム中デバッグキー: 4/6=ヨー, 8/2=ピッチ, 3/9=距離, 5=数値をconsoleに出力
 const CAM = {
-  yaw: 0.42,      // 斜め後ろ(顔の側面も少し見える)
-  pitch: 0.34,
-  dist: 15,
-  lookBack: 14,
-  lookUp: 0.8,
-  follow: 0.55,   // 自機追従の最終寄り率
-  swayYaw: 0.18,  // 照準による振れ
-  swayPitch: 0.1,
+  yaw: 0.55,      // 斜め前寄り(顔が見えるクォータービュー)
+  pitch: 0.32,
+  dist: 14,
+  lookBack: 10,   // 注視点は自機より少し奥(敵方向)
+  lookUp: 0.6,
+  follow: 0.55,
+  swayYaw: 0.16,
+  swayPitch: 0.09,
   fov: 58,
-  // 遅れ追従の時定数(小さいほど遅い)
-  lagPos: 2.2,    // 位置
-  lagAim: 3.5,    // カーソル
-  lagLook: 2.8,   // 注視点
+  lagPos: 2.2,
+  lagAim: 3.5,
+  lagLook: 2.8,
 };
 
 // カメラの遅れ状態
