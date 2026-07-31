@@ -20,7 +20,7 @@ python -m http.server 8000
 
 - Three.js (CDN importmap) + Vanilla JS、ビルドツールなし
 - 3Dモデル: すべてコード生成(プリミティブ構成)。顔はCanvasテクスチャで表情差し替え
-- 音: WebAudio APIで全合成(BGM・効果音ともに外部ファイルなし)
+- 音: BGMはWebAudio合成(爽快シューティング風)。効果音は [Kenney](https://kenney.nl) Digital Audio / Sci-fi Sounds (CC0) を `assets/sfx/` に同梱。読み込み失敗時は合成にフォールバック
 - PC / スマホ両対応(タッチUI内蔵)
 
 ## ドキュメント
