@@ -121,10 +121,24 @@ export function spawnExplosion(game, pos, size = 1, colors = [0xffdd55, 0xff8833
 }
 
 // ================= 敵たち =================
+// 深度の意味: マイナス=奥(遠い)、0=自機面、プラス=カメラ手前
+// 速度メリハリ: 遠いほど遅く → 接近で加速 → 近くで並走
 
-// ヤキダンゴ(3玉串) — 回転しながら蛇行して体当たり
+function depthSpeed(depth) {
+  // 遠いほど遅く → 近づくほど加速 → 至近で並走(遅い) → 通過で再び速く
+  if (depth < -55) return 5;
+  if (depth < -14) {
+    const t = (depth + 55) / 41; // 0@-55 → 1@-14
+    return 5 + t * 18; // 最大約23
+  }
+  if (depth < -5) return 2.5; // 並走
+  return 16;
+}
+
+// ヤキダンゴ — 群れの主力。遠→加速接近→並走→通過 / out-and-back / 画面端入り
 export class Dango extends Enemy {
-  constructor(game, x, y) {
+  // mode: 'swarm' | 'outback' | 'edge'
+  constructor(game, x, y, mode = 'swarm') {
     const g = new THREE.Group();
     const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 3.2, 8), mat(0xd8b57e));
     g.add(stick);
@@ -135,25 +149,74 @@ export class Dango extends Enemy {
       g.add(ball);
     }
     super(game, g, 1, 1.05);
-    this.baseLat = x;
-    this.place(x, y, -85);
-    this.speed = 19 + Math.random() * 5;
+    this.mode = mode;
     this.phase = Math.random() * 7;
-    this.spin = g.children[0]; // 串ごと回すためgroup全体をz回転
+    this.baseLat = x;
+    this.escortT = 0;
+    this.escortMax = 1.6 + Math.random() * 1.2;
+
+    if (mode === 'outback') {
+      // 手前から奥へ飛んで、戻ってくる
+      this.place(x, y, 8 + Math.random() * 4);
+      this.outDir = -1; // まず奥へ
+      this.turnDepth = -55 - Math.random() * 20;
+    } else if (mode === 'edge') {
+      // 画面端の遠くから入ってくる
+      const side = x >= 0 ? 1 : -1;
+      this.place(side * (28 + Math.random() * 10), y, -70 - Math.random() * 25);
+      this.baseLat = x;
+      this.edgeSide = side;
+    } else {
+      this.place(x, y, -90 - Math.random() * 25);
+    }
   }
   update(dt) {
     super.update(dt);
+    this.mesh.rotation.z += dt * 4;
+
+    if (this.mode === 'outback') {
+      if (this.outDir < 0) {
+        // 奥へ(depth減少)
+        const sp = this.depth > -20 ? 22 : 10;
+        this.place(this.baseLat + Math.sin(this.t * 2 + this.phase) * 1.5, this.h, this.depth - sp * dt);
+        if (this.depth <= this.turnDepth) this.outDir = 1;
+      } else {
+        const sp = depthSpeed(this.depth);
+        this.place(this.baseLat + Math.sin(this.t * 2 + this.phase) * 1.5, this.h, this.depth + sp * dt);
+        if (this.depth > 16) this.remove();
+      }
+      return;
+    }
+
+    if (this.mode === 'edge') {
+      const targetLat = this.baseLat;
+      const lat = THREE.MathUtils.lerp(this.lat, targetLat, Math.min(1, dt * 0.7));
+      let sp = depthSpeed(this.depth);
+      if (this.depth > -12 && this.depth < -5) {
+        this.escortT += dt;
+        if (this.escortT < this.escortMax) sp = 1.0;
+      }
+      this.place(lat, this.h, this.depth + sp * dt);
+      if (this.depth > 16) this.remove();
+      return;
+    }
+
+    // swarm: 奥からメリハリ接近→並走→通過
+    let sp = depthSpeed(this.depth);
+    if (this.depth > -12 && this.depth < -5) {
+      this.escortT += dt;
+      if (this.escortT < this.escortMax) sp = 1.2; // しばらく並走
+    }
     this.place(
       this.baseLat + Math.sin(this.t * 2 + this.phase) * 1.6,
       this.h,
-      this.depth + this.speed * dt
+      this.depth + sp * dt
     );
-    this.mesh.rotation.z += dt * 4;
-    if (this.depth > 14) this.remove();
+    if (this.depth > 16) this.remove();
   }
 }
 
-// フカイシェイカー(醤油瓶) — 停止して醤油弾を山なりに投げる
+// フカイシェイカー — 遠くからゆっくり→並走して弾→通過
 export class Shoyu extends Enemy {
   constructor(game, x, y) {
     const g = new THREE.Group();
@@ -168,34 +231,37 @@ export class Shoyu extends Enemy {
     label.position.y = -0.1; label.scale.z = 0.85;
     g.add(label);
     super(game, g, 3, 1.2, 200);
-    this.place(x, y, -80);
-    this.holdDepth = -26 - Math.random() * 8;
-    this.cool = 1.2 + Math.random();
+    this.place(x, y, -95);
+    this.holdDepth = -18 - Math.random() * 6;
+    this.cool = 0.8 + Math.random();
+    this.holdT = 0;
   }
   update(dt) {
     super.update(dt);
-    if (this.depth < this.holdDepth) this.place(this.lat, this.h, this.depth + 20 * dt);
-    else {
-      this.place(this.lat, this.h + Math.sin(this.t * 2.2) * dt * 1.2, this.depth + 1.5 * dt);
-      this.mesh.rotation.z = Math.sin(this.t * 8) * 0.12; // シェイク
+    if (this.depth < this.holdDepth) {
+      this.place(this.lat, this.h, this.depth + depthSpeed(this.depth) * dt);
+    } else if (this.holdT < 3.5) {
+      this.holdT += dt;
+      this.place(this.lat, this.h + Math.sin(this.t * 2.2) * dt * 1.2, this.depth + 0.4 * dt);
+      this.mesh.rotation.z = Math.sin(this.t * 8) * 0.12;
       this.cool -= dt;
       if (this.cool <= 0) {
-        this.cool = 2.6 * this.game.relief();
-        // 山なり醤油弾(大きめ・ゆっくりで軌道を読みやすく)
+        this.cool = 2.2 * this.game.relief();
         const v = this.game.player.pos.clone().sub(this.pos);
-        const time = 1.75;
-        const g0 = 9;
+        const time = 1.75, g0 = 9;
         v.multiplyScalar(1 / time);
         v.y += g0 * time * 0.5;
         spawnBullet(this.game, this.pos, v, 0x3b1206, 0.65, g0);
         this.game.audio.shoot();
       }
+    } else {
+      this.place(this.lat, this.h, this.depth + 16 * dt);
     }
-    if (this.depth > 14) this.remove();
+    if (this.depth > 16) this.remove();
   }
 }
 
-// サヤマチャドローン(湯呑み) — 横移動しつつ3way茶弾
+// サヤマチャドローン — 画面端から入ってきて並走射撃
 export class TeaDrone extends Enemy {
   constructor(game, x, y) {
     const g = new THREE.Group();
@@ -211,21 +277,27 @@ export class TeaDrone extends Enemy {
     g.add(rotor);
     super(game, g, 2, 1.15, 150);
     this.rotor = rotor;
-    this.place(x, y, -75);
-    this.dir = x > 0 ? -1 : 1;
-    this.cool = 1.5 + Math.random();
+    const side = x >= 0 ? 1 : -1;
+    this.place(side * 32, y, -80);
+    this.targetLat = x;
+    this.dir = side > 0 ? -1 : 1;
+    this.cool = 1.2 + Math.random();
+    this.holdT = 0;
   }
   update(dt) {
     super.update(dt);
     this.rotor.rotation.y += dt * 20;
-    if (this.depth < -20) this.place(this.lat, this.h, this.depth + 16 * dt);
-    else {
-      let lat = this.lat + this.dir * 4.5 * dt;
-      if (Math.abs(lat) > 13) this.dir *= -1;
-      this.place(lat, this.h, this.depth + 2 * dt);
+    const lat = THREE.MathUtils.lerp(this.lat, this.targetLat, Math.min(1, dt * 0.85));
+    if (this.depth < -16) {
+      this.place(lat, this.h, this.depth + depthSpeed(this.depth) * dt);
+    } else if (this.holdT < 4) {
+      this.holdT += dt;
+      let nlat = this.lat + this.dir * 4.2 * dt;
+      if (Math.abs(nlat) > 12) this.dir *= -1;
+      this.place(nlat, this.h, this.depth + 0.8 * dt);
       this.cool -= dt;
       if (this.cool <= 0) {
-        this.cool = 2.8 * this.game.relief();
+        this.cool = 2.4 * this.game.relief();
         const base = this.game.player.pos.clone().sub(this.pos).normalize();
         for (let i = -1; i <= 1; i++) {
           const v = base.clone();
@@ -235,16 +307,18 @@ export class TeaDrone extends Enemy {
         }
         this.game.audio.shoot();
       }
+    } else {
+      this.place(this.lat, this.h, this.depth + 15 * dt);
     }
-    if (this.depth > 14) this.remove();
+    if (this.depth > 16) this.remove();
   }
 }
 
-// カイシキ一号(複葉機) — 横から高速で横切り、直線弾
+// カイシキ一号 — 画面外はるか横から突入
 export class Biplane extends Enemy {
   constructor(game, side, y) {
     const g = new THREE.Group();
-    const inner = new THREE.Group(); // 向き調整用
+    const inner = new THREE.Group();
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 1.5, 4, 10), mat(0xc8b485));
     body.rotation.z = Math.PI / 2;
     inner.add(body);
@@ -263,27 +337,32 @@ export class Biplane extends Enemy {
     g.add(inner);
     super(game, g, 2, 1.3, 150);
     this.prop = prop;
-    this.place(side * 26, y, -38 - Math.random() * 15);
-    this.vLat = -side * (13 + Math.random() * 5);
     this.inner = inner;
-    this.cool = 0.7;
+    // はるか画面外から
+    this.place(side * 40, y, -50 - Math.random() * 20);
+    this.vLat = -side * (11 + Math.random() * 4);
+    this.cool = 0.5;
   }
   update(dt) {
     super.update(dt);
     this.prop.rotation.x += dt * 30;
-    this.place(this.lat + this.vLat * dt, this.h, this.depth + 3.5 * dt);
+    // 遠くは遅く、画面内に入ったら加速
+    const inFrame = Math.abs(this.lat) < 16;
+    const latSp = inFrame ? this.vLat * 1.35 : this.vLat * 0.55;
+    const dSp = inFrame ? 5 : 2;
+    this.place(this.lat + latSp * dt, this.h, this.depth + dSp * dt);
     this.inner.rotation.z = Math.sin(this.t * 3) * 0.15;
     this.cool -= dt;
-    if (this.cool <= 0 && Math.abs(this.lat) < 15) {
-      this.cool = 1.5 * this.game.relief();
+    if (this.cool <= 0 && Math.abs(this.lat) < 14) {
+      this.cool = 1.4 * this.game.relief();
       shootAt(this.game, this.pos, 12.5, 0xffa03c, 0.55, 2.5);
       this.game.audio.shoot();
     }
-    if (Math.abs(this.lat) > 30 || this.depth > 14) this.remove();
+    if (Math.abs(this.lat) > 45 || this.depth > 18) this.remove();
   }
 }
 
-// ネギミサイル — 下から発射、ゆる追尾(ワールド座標で追尾)
+// ネギミサイル — 下から。近くで並走気味に追尾
 export class Negi extends Enemy {
   constructor(game, x, z) {
     const g = new THREE.Group();
@@ -300,11 +379,23 @@ export class Negi extends Enemy {
   }
   update(dt) {
     super.update(dt);
-    const to = this.game.player.pos.clone().sub(this.pos).normalize().multiplyScalar(9);
-    this.vel.lerp(to, dt * 0.7);
+    const dist = this.pos.distanceTo(this.game.player.pos);
+    const spd = dist > 25 ? 6 : dist > 10 ? 12 : 5; // 遠い遅・近づき速・近く並走
+    const to = this.game.player.pos.clone().sub(this.pos).normalize().multiplyScalar(spd);
+    this.vel.lerp(to, dt * (dist > 10 ? 0.9 : 0.4));
     this.pos.addScaledVector(this.vel, dt);
     this.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), this.vel.clone().normalize());
-    if (this.t > 6 || this.pos.distanceTo(this.game.player.pos) > 130) this.remove();
+    if (this.t > 7 || this.pos.distanceTo(this.game.player.pos) > 130) this.remove();
+  }
+}
+
+/** 団子8体ウェーブを一括スポーン */
+export function spawnDangoPack(game, mode = 'swarm') {
+  for (let i = 0; i < 8; i++) {
+    const lat = -10.5 + i * 3;
+    const h = 2.5 + (i % 3) * 2.2 + Math.random();
+    // 少しずつ遅れて奥から来る感じに depth 差は constructor 内のランダムで
+    new Dango(game, lat, h, mode);
   }
 }
 

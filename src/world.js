@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Dango, Shoyu, TeaDrone, Biplane, Negi, Boss, disposeObject } from './enemies.js';
+import { Dango, Shoyu, TeaDrone, Biplane, Negi, Boss, disposeObject, spawnDangoPack } from './enemies.js';
 
 const mat = c => new THREE.MeshToonMaterial({ color: c });
 const SCROLL = 26; // 世界の流れ(奥→手前 +Z)
@@ -176,20 +176,20 @@ export class World {
 
     // --- フェーズ1: 所沢上空 ---
     msg(0.5, 'AREA 1 ─ 所沢上空');
-    at(3, () => { for (let i = 0; i < 4; i++) new Dango(g, -6 + i * 4, 4 + (i % 2) * 3); });
-    dir(5.5, L);
-    at(8, () => { new TeaDrone(g, -8, 6); new TeaDrone(g, 8, 4); });
+    at(2.5, () => spawnDangoPack(g, 'swarm')); // 8体まとめて
+    dir(7, L);
+    at(8, () => { new TeaDrone(g, -8, 6); new TeaDrone(g, 8, 4); new TeaDrone(g, -4, 7); new TeaDrone(g, 4, 3); });
     dir(11, R);
-    at(13, () => { for (let i = 0; i < 5; i++) new Dango(g, -8 + i * 4, 3 + Math.random() * 5); });
-    dir(15.5, B);
-    at(18, () => { new TeaDrone(g, 0, 7); for (let i = 0; i < 3; i++) new Dango(g, -4 + i * 4, 2.5); });
-    dir(20.5, FRONT);
-    at(22, () => { for (let i = 0; i < 4; i++) new Dango(g, -6 + i * 4, 3 + (i % 2) * 3); });
-    dir(24.5, R);
-    at(24, () => { for (let i = 0; i < 6; i++) new Dango(g, (i % 2 ? -9 : 9), 2 + i * 1.2); new TeaDrone(g, -6, 5); });
-    dir(28, L);
-    at(30, () => { new TeaDrone(g, 7, 7); new TeaDrone(g, -7, 3); });
-    dir(33, B);
+    at(12, () => spawnDangoPack(g, 'edge')); // 画面端から8体
+    dir(16, B);
+    at(17, () => spawnDangoPack(g, 'outback')); // 手前→奥→戻る
+    dir(21, FRONT);
+    at(22, () => { for (let i = 0; i < 4; i++) new Dango(g, -7.5 + i * 5, 3 + (i % 2) * 3, 'swarm'); new TeaDrone(g, 0, 6); });
+    dir(25, R);
+    at(26, () => spawnDangoPack(g, 'swarm'));
+    dir(30, L);
+    at(31, () => { new TeaDrone(g, 7, 7); new TeaDrone(g, -7, 3); new TeaDrone(g, 0, 5); });
+    dir(34, B);
 
     // --- フェーズ2: プロペ通り商店街 ---
     at(36, () => this.setPhase('street'));
@@ -197,13 +197,13 @@ export class World {
     at(39, () => { new Shoyu(g, -6, 5); new Shoyu(g, 6, 5); });
     at(44, () => { new Negi(g, -5, -30); new Negi(g, 5, -30); new Negi(g, 0, -40); });
     dir(46.5, L);
-    at(48, () => { for (let i = 0; i < 4; i++) new Dango(g, -6 + i * 4, 3 + (i % 2) * 4); new Shoyu(g, 0, 7); });
+    at(48, () => spawnDangoPack(g, 'swarm'));
     dir(52.5, R);
     at(54, () => { new Negi(g, -8, -25); new Negi(g, 8, -25); new Shoyu(g, -5, 4); new Shoyu(g, 5, 6); });
     dir(58.5, L);
-    at(60, () => { new TeaDrone(g, -8, 5); new Negi(g, 0, -35); for (let i = 0; i < 3; i++) new Dango(g, -4 + i * 4, 6); });
+    at(60, () => spawnDangoPack(g, 'edge'));
     dir(64.5, B);
-    at(66, () => { new Shoyu(g, 0, 5); new Negi(g, -6, -28); new Negi(g, 6, -28); });
+    at(66, () => { new Shoyu(g, 0, 5); new Negi(g, -6, -28); new Negi(g, 6, -28); spawnDangoPack(g, 'outback'); });
 
     // --- フェーズ3: 航空記念公園 ---
     at(72, () => this.setPhase('park'));
@@ -214,7 +214,7 @@ export class World {
     dir(84.5, R);
     at(86, () => { new Biplane(g, -1, 4); new Biplane(g, -1, 7); new Biplane(g, 1, 5.5); });
     dir(90.5, FRONT); // 正面へ大旋回!
-    at(92, () => { for (let i = 0; i < 5; i++) new Dango(g, -8 + i * 4, 3 + Math.random() * 5); new Biplane(g, 1, 6); });
+    at(92, () => { spawnDangoPack(g, 'swarm'); new Biplane(g, 1, 6); });
     dir(96.5, B);
     at(98, () => { new Biplane(g, -1, 3); new Biplane(g, 1, 7); new TeaDrone(g, 0, 8); new Negi(g, 0, -30); });
 
@@ -225,11 +225,11 @@ export class World {
     dir(112.5, L);
     at(114, () => { new Biplane(g, 1, 5); new Biplane(g, -1, 5); new TeaDrone(g, -6, 7); new TeaDrone(g, 6, 3); });
     dir(118.5, FRONT);
-    at(120, () => { for (let i = 0; i < 6; i++) new Dango(g, -9 + i * 3.6, 2.5 + Math.random() * 5); new Shoyu(g, 0, 8); });
+    at(120, () => spawnDangoPack(g, 'edge'));
     dir(124.5, R);
     at(126, () => { new Negi(g, -7, -25); new Negi(g, 7, -25); new Negi(g, 0, -35); new Biplane(g, 1, 6); new Biplane(g, -1, 4); });
     dir(130.5, B);
-    at(132, () => { new Shoyu(g, -6, 4); new Shoyu(g, 6, 7); new TeaDrone(g, 0, 6); });
+    at(132, () => { new Shoyu(g, -6, 4); new Shoyu(g, 6, 7); new TeaDrone(g, 0, 6); spawnDangoPack(g, 'outback'); });
 
     // --- ボス(後方に戻して決戦) ---
     dir(138, B);

@@ -277,11 +277,13 @@ export class Player {
 
     game.scene.add(this.group);
     this.group.position.copy(this.pos);
-    // 進行方向(奥)を向く。顔は +Z なので rotation.y = viewYaw+π
-    this.baseTilt = -0.15;
-    this.group.rotation.x = this.baseTilt;
-    this.group.rotation.y = Math.PI; // 初期: 奥向き
-    this.faceYaw = Math.PI; // なめらかな向き補間用
+    // 飛行機姿勢: 頭=進行方向(+Zローカル)、足=下(+Yローカル上向き)
+    this._fwd = new THREE.Vector3(0, 0, -1);
+    this._up = new THREE.Vector3(0, 1, 0);
+    this._right = new THREE.Vector3(1, 0, 0);
+    this._m = new THREE.Matrix4();
+    this.bank = 0;
+    this.pitch = 0;
 
     this.shadow = new THREE.Mesh(
       new THREE.CircleGeometry(1.1, 20),
@@ -345,11 +347,11 @@ export class Player {
       this.pos.y = THREE.MathUtils.clamp(this.pos.y + this.vel.y * dt, 0.12, 9.5);
     } else {
       this.pos.y = Math.max(0.3, this.pos.y - dt * 4);
-      this.group.rotation.z += dt * 9;
+      this.group.rotateZ(dt * 9); // きりもみ
     }
 
     if (game.state === 'clear') {
-      this.group.rotation.y += dt * 4;
+      this.group.rotateY(dt * 4);
       this.pos.y = Math.min(7, this.pos.y + dt * 0.8);
       this.wingMode = 'flap';
       this.flapEnergy = 1;
@@ -367,22 +369,35 @@ export class Player {
     if (this.shake > 0) this.shake -= dt;
 
     if (!this.dead && game.state !== 'clear') {
-      // 進行方向=奥(-F)を向く。顔(+Z)が奥を向くよう viewYaw+π
-      // 旋回中は少しバンクして自然に曲がる
-      let turn = game.waveDir - game.viewYaw;
-      while (turn > Math.PI) turn -= Math.PI * 2;
-      while (turn < -Math.PI) turn += Math.PI * 2;
-      const targetYaw = vy + Math.PI;
-      // 最短経路で補間
-      let dy = targetYaw - this.faceYaw;
-      while (dy > Math.PI) dy -= Math.PI * 2;
-      while (dy < -Math.PI) dy += Math.PI * 2;
-      this.faceYaw += dy * Math.min(1, dt * 3.5);
-      this.group.rotation.y = this.faceYaw;
-      // 横移動と旋回でバンク
-      const bank = -this.vel.x * 0.05 - turn * 0.35;
-      this.group.rotation.z = THREE.MathUtils.lerp(this.group.rotation.z, bank, dt * 6);
-      this.group.rotation.x = THREE.MathUtils.lerp(this.group.rotation.x, this.baseTilt + this.vel.y * 0.03, dt * 8);
+      // ===== パンツァードラグーン式: 常にスクロール進行方向を向く =====
+      // 進行方向 = 奥へ(-F)。カメラが回っても「頭が前・足が下」
+      const F = game.frameF(vy);
+      // ワールド前方(頭の向き): 奥方向
+      this._fwd.set(-F.x, 0, -F.z).normalize();
+      // ワールド上(足の反対): 常にほぼ真上
+      this._up.set(0, 1, 0);
+      // 右ベクトル
+      this._right.crossVectors(this._up, this._fwd).normalize();
+      this._up.crossVectors(this._fwd, this._right).normalize();
+
+      // バンク(横移動)・ピッチ(上下)は前進軸まわり/右軸まわりにだけかける
+      const wantBank = THREE.MathUtils.clamp(-this.vel.x * 0.055, -0.55, 0.55);
+      const wantPitch = THREE.MathUtils.clamp(this.vel.y * 0.035, -0.35, 0.35);
+      this.bank += (wantBank - this.bank) * Math.min(1, dt * 6);
+      this.pitch += (wantPitch - this.pitch) * Math.min(1, dt * 6);
+
+      // バンク: forward軸まわりに up/right を回転
+      this._up.applyAxisAngle(this._fwd, this.bank);
+      this._right.applyAxisAngle(this._fwd, this.bank);
+      // ピッチ: right軸まわりに forward/up を回転
+      this._fwd.applyAxisAngle(this._right, this.pitch);
+      this._up.applyAxisAngle(this._right, this.pitch);
+      this._fwd.normalize(); this._up.normalize();
+      this._right.crossVectors(this._up, this._fwd).normalize();
+
+      // ローカル +X=right, +Y=up, +Z=forward(顔) になる行列
+      this._m.makeBasis(this._right, this._up, this._fwd);
+      this.group.quaternion.setFromRotationMatrix(this._m);
     }
 
     this.shadow.position.x = this.pos.x;
