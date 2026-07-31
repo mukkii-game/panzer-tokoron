@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { disposeObject } from './enemies.js';
 
-const puffGeo = new THREE.SphereGeometry(1, 10, 8);
+const puffGeo = new THREE.PlaneGeometry(1, 1);
 
 // ロック数(1〜8)ごとのもくもく雲カラー(薄め)
 const LOCK_SMOKE = [
@@ -158,18 +158,25 @@ export class Weapons {
     });
   }
 
-  spawnPuff(pos, color, scale = 0.35, opacity = 0.28) {
+  spawnPuff(pos, color, scale = 0.55, opacity = 0.1) {
+    // 平面メッシュ + Additive で奥が透ける薄い煙
     const puff = new THREE.Mesh(puffGeo, new THREE.MeshBasicMaterial({
-      color, transparent: true, opacity, depthWrite: false,
+      color,
+      transparent: true,
+      opacity,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
     }));
     puff.position.copy(pos);
-    puff.position.x += (Math.random() - 0.5) * 0.35;
-    puff.position.y += (Math.random() - 0.5) * 0.35;
-    puff.position.z += (Math.random() - 0.5) * 0.35;
+    puff.position.x += (Math.random() - 0.5) * 0.4;
+    puff.position.y += (Math.random() - 0.5) * 0.4;
+    puff.position.z += (Math.random() - 0.5) * 0.4;
     puff.scale.setScalar(scale);
+    puff.lookAt(this.game.camera.position);
     this.game.scene.add(puff);
     this.smokes.push({
-      mesh: puff, t: 0, max: 0.55 + Math.random() * 0.25,
+      mesh: puff, t: 0, max: 0.4 + Math.random() * 0.2,
       baseOpacity: opacity,
     });
   }
@@ -248,23 +255,20 @@ export class Weapons {
       ms.mesh.position.addScaledVector(ms.vel, dt);
       if (ms.vel.lengthSq() > 0.01) ms.mesh.lookAt(ms.mesh.position.clone().add(ms.vel));
 
-      // もくもく雲: 序盤は白寄り、途中からロック数カラーへ。薄くて奥が見える
+      // 薄い平面煙: 発生少なめ、序盤白→途中で色づく
       ms.emit -= dt;
       if (ms.emit <= 0) {
-        ms.emit = 0.045;
-        const tint = ms.age < 0.45 ? ms.puffBase
+        ms.emit = 0.07;
+        const tint = ms.age < 0.5 ? ms.puffBase
           : (Math.random() < 0.55 ? ms.puffHue : ms.puffAccent);
-        this.spawnPuff(ms.mesh.position, tint, 0.32 + Math.random() * 0.18, 0.22 + Math.min(0.12, ms.age * 0.04));
-        if (Math.random() < 0.12) {
-          this.spawnPuff(ms.mesh.position, tint, 0.5, 0.18);
-        }
+        this.spawnPuff(ms.mesh.position, tint, 0.55 + Math.random() * 0.25, 0.08);
       }
 
       let done = false;
       if (ms.target && ms.target.alive && ms.mesh.position.distanceTo(ms.target.pos) < ms.target.radius + 0.9) {
         ms.target.damage(1, true);
-        for (let k = 0; k < 5; k++) {
-          this.spawnPuff(ms.mesh.position, ms.puffHue, 0.45 + Math.random() * 0.35, 0.3);
+        for (let k = 0; k < 3; k++) {
+          this.spawnPuff(ms.mesh.position, ms.puffHue, 0.7 + Math.random() * 0.3, 0.12);
         }
         done = true;
       }
@@ -275,14 +279,15 @@ export class Weapons {
       }
     }
 
-    // 雲パフ成長・フェード(薄め・早めに消える)
+    // 雲パフ: 薄くすぐ消える。カメラ向き維持
     for (let i = this.smokes.length - 1; i >= 0; i--) {
       const p = this.smokes[i];
       p.t += dt;
       const k = p.t / p.max;
-      p.mesh.scale.setScalar(0.32 + k * 1.1);
-      p.mesh.material.opacity = (p.baseOpacity ?? 0.28) * Math.max(0, 1 - k);
-      p.mesh.position.y += dt * 0.45;
+      p.mesh.scale.setScalar(0.5 + k * 1.4);
+      p.mesh.material.opacity = (p.baseOpacity ?? 0.1) * Math.max(0, 1 - k);
+      p.mesh.position.y += dt * 0.35;
+      p.mesh.lookAt(game.camera.position);
       if (k >= 1) {
         game.scene.remove(p.mesh);
         p.mesh.material.dispose();

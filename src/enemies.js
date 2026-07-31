@@ -447,12 +447,12 @@ export class Udon extends Enemy {
   }
 }
 
-// 「3割うまい！」女の子 — 常にプレイヤー側を見る2Dビルボード
+// 「4割うまい！」女の子 — 常にプレイヤー側を見る2Dビルボード
 let sanwariTex = null;
 let shoutTex = null;
 function getSanwariTex() {
   if (sanwariTex) return sanwariTex;
-  sanwariTex = new THREE.TextureLoader().load('assets/sanwari.png');
+  sanwariTex = new THREE.TextureLoader().load('assets/yonwari.png');
   sanwariTex.colorSpace = THREE.SRGBColorSpace;
   return sanwariTex;
 }
@@ -476,7 +476,7 @@ function getShoutTex() {
   c.font = 'bold 58px "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif';
   c.textAlign = 'center';
   c.textBaseline = 'middle';
-  c.fillText('3割うまい！！', 256, 62);
+  c.fillText('4割うまい！！', 256, 62);
   shoutTex = new THREE.CanvasTexture(cv);
   shoutTex.colorSpace = THREE.SRGBColorSpace;
   return shoutTex;
@@ -503,10 +503,12 @@ export class SanwariGirl extends Enemy {
     super(game, g, 4, 2.4, 350);
     this.girl = girl;
     this.shout = shout;
-    this.place(x, y, -110);
+    // やや近い距離から登場 → 手前でゆっくり
+    this.place(x, y, -55 - Math.random() * 15);
     this.baseLat = x;
-    this.cool = 1.8;
+    this.cool = 1.5;
     this.holdT = 0;
+    this.nearDepth = -10 - Math.random() * 3; // この手前で減速ホールド
   }
   update(dt) {
     super.update(dt);
@@ -520,30 +522,36 @@ export class SanwariGirl extends Enemy {
       this.shout.position.y = 3.1 + Math.sin(this.t * 10) * 0.15;
     }
 
-    if (this.depth < -18) {
+    if (this.depth < this.nearDepth) {
+      // 接近: やや速めだが通常敵より近いスポーン
+      const sp = Math.max(6, depthSpeed(this.depth) * 0.75);
       this.place(
-        this.baseLat + Math.sin(this.t * 1.2) * 1.8,
+        this.baseLat + Math.sin(this.t * 1.0) * 1.2,
         this.h,
-        this.depth + depthSpeed(this.depth) * 0.9 * dt
+        this.depth + sp * dt
       );
-    } else if (this.holdT < 3.2) {
+    } else if (this.holdT < 5.5) {
+      // プレイヤー近くでゆっくり横揺れ＝狙いやすい
       this.holdT += dt;
-      this.place(this.baseLat + Math.sin(this.t * 1.5) * 3, this.h + Math.sin(this.t * 2) * 0.4, this.depth + 0.5 * dt);
+      this.place(
+        this.baseLat + Math.sin(this.t * 0.9) * 2.2,
+        this.h + Math.sin(this.t * 1.4) * 0.35,
+        this.depth + 0.22 * dt
+      );
       this.cool -= dt;
       if (this.cool <= 0) {
-        this.cool = 1.2 * this.game.relief();
-        // 「うまい」気合弾(ピンク)
+        this.cool = 1.5 * this.game.relief();
         for (let i = -2; i <= 2; i++) {
           const v = this.game.player.pos.clone().sub(this.pos).normalize();
           v.addScaledVector(this.R, i * 0.18);
-          v.normalize().multiplyScalar(11);
+          v.normalize().multiplyScalar(9);
           spawnBullet(this.game, this.pos, v, 0xff4d8a, 0.48);
         }
         this.game.audio.shoot();
         this.game.audio.msg();
       }
     } else {
-      this.place(this.lat, this.h, this.depth + 14 * dt);
+      this.place(this.lat, this.h, this.depth + 8 * dt);
     }
     if (this.depth > 16) this.remove();
   }
