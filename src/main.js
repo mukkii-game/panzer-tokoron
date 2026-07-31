@@ -150,7 +150,7 @@ function updateCamera(dt) {
   let dd = game.waveDir - game.viewYaw;
   while (dd > Math.PI) dd -= Math.PI * 2;
   while (dd < -Math.PI) dd += Math.PI * 2;
-  game.viewYaw += dd * Math.min(1, dt * 2.1);
+  game.viewYaw += dd * Math.min(1, dt * 1.55); // 方向転換はゆっくり味わう
 
   const vyaw = game.viewYaw;
   const p = game.player.pos;
