@@ -110,7 +110,7 @@ export class Weapons {
       this.locks.push(best);
       game.audio.lock(this.locks.length);
       game.ui.setLock(this.locks.length);
-      this.lockCool = 0.038; // 約2フレ@60fps
+      this.lockCool = 0.065; // 約4フレ@60fps（カカカ…の余白）
     }
   }
 
