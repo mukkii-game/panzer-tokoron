@@ -125,14 +125,15 @@ export function spawnExplosion(game, pos, size = 1, colors = [0xffdd55, 0xff8833
 // 速度メリハリ: 遠いほど遅く → 接近で加速 → 近くで並走
 
 function depthSpeed(depth) {
-  // 遠いほど遅く → 近づくほど加速 → 至近で並走(遅い) → 通過で再び速く
-  if (depth < -55) return 5;
+  // ペース圧縮: 全体を速くしつつメリハリは維持
+  const k = 1.85;
+  if (depth < -55) return 5 * k;
   if (depth < -14) {
-    const t = (depth + 55) / 41; // 0@-55 → 1@-14
-    return 5 + t * 18; // 最大約23
+    const t = (depth + 55) / 41;
+    return (5 + t * 18) * k;
   }
-  if (depth < -5) return 2.5; // 並走
-  return 16;
+  if (depth < -5) return 2.5 * k;
+  return 16 * k;
 }
 
 // ヤキダンゴ — 群れの主力。遠→加速接近→並走→通過 / out-and-back / 画面端入り
@@ -159,7 +160,7 @@ export class Dango extends Enemy {
     this.phase = Math.random() * 7;
     this.baseLat = x;
     this.escortT = 0;
-    this.escortMax = 1.6 + Math.random() * 1.2;
+    this.escortMax = 0.7 + Math.random() * 0.5;
 
     if (mode === 'outback') {
       // 手前から奥へ飛んで、戻ってくる
@@ -246,13 +247,13 @@ export class Shoyu extends Enemy {
     super.update(dt);
     if (this.depth < this.holdDepth) {
       this.place(this.lat, this.h, this.depth + depthSpeed(this.depth) * dt);
-    } else if (this.holdT < 3.5) {
+    } else if (this.holdT < 1.6) {
       this.holdT += dt;
       this.place(this.lat, this.h + Math.sin(this.t * 2.2) * dt * 1.2, this.depth + 0.4 * dt);
       this.mesh.rotation.z = Math.sin(this.t * 8) * 0.12;
       this.cool -= dt;
       if (this.cool <= 0) {
-        this.cool = 2.2 * this.game.relief();
+        this.cool = 1.1 * this.game.relief();
         const v = this.game.player.pos.clone().sub(this.pos);
         const time = 1.75, g0 = 9;
         v.multiplyScalar(1 / time);
@@ -319,14 +320,14 @@ export class TeaDrone extends Enemy {
     const lat = THREE.MathUtils.lerp(this.lat, this.targetLat, Math.min(1, dt * 0.85));
     if (this.depth < -16) {
       this.place(lat, this.h, this.depth + depthSpeed(this.depth) * dt);
-    } else if (this.holdT < 4) {
+    } else if (this.holdT < 1.8) {
       this.holdT += dt;
       let nlat = this.lat + this.dir * 4.2 * dt;
       if (Math.abs(nlat) > 12) this.dir *= -1;
       this.place(nlat, this.h, this.depth + 0.8 * dt);
       this.cool -= dt;
       if (this.cool <= 0) {
-        this.cool = 2.4 * this.game.relief();
+        this.cool = 1.2 * this.game.relief();
         const base = this.game.player.pos.clone().sub(this.pos).normalize();
         for (let i = -1; i <= 1; i++) {
           const v = base.clone();
@@ -423,12 +424,12 @@ export class Udon extends Enemy {
         this.h + Math.sin(this.t * 2) * 0.3,
         this.depth + depthSpeed(this.depth) * dt
       );
-    } else if (this.holdT < 3.2) {
+    } else if (this.holdT < 1.5) {
       this.holdT += dt;
       this.place(this.baseLat + Math.sin(this.t * 1.6) * 2.5, this.h, this.depth + 0.6 * dt);
       this.cool -= dt;
       if (this.cool <= 0) {
-        this.cool = 2.0 * this.game.relief();
+        this.cool = 1.0 * this.game.relief();
         // 飛び散る肉汁弾
         for (let i = -1; i <= 1; i++) {
           const v = this.game.player.pos.clone().sub(this.pos).normalize();
@@ -525,12 +526,12 @@ export class SanwariGirl extends Enemy {
         this.h,
         this.depth + depthSpeed(this.depth) * 0.9 * dt
       );
-    } else if (this.holdT < 5) {
+    } else if (this.holdT < 2.2) {
       this.holdT += dt;
       this.place(this.baseLat + Math.sin(this.t * 1.5) * 3, this.h + Math.sin(this.t * 2) * 0.4, this.depth + 0.5 * dt);
       this.cool -= dt;
       if (this.cool <= 0) {
-        this.cool = 1.8 * this.game.relief();
+        this.cool = 0.9 * this.game.relief();
         // 「うまい」気合弾(ピンク)
         for (let i = -2; i <= 2; i++) {
           const v = this.game.player.pos.clone().sub(this.pos).normalize();
@@ -574,22 +575,21 @@ export class Biplane extends Enemy {
     this.inner = inner;
     // はるか画面外から
     this.place(side * 40, y, -50 - Math.random() * 20);
-    this.vLat = -side * (11 + Math.random() * 4);
-    this.cool = 0.5;
+    this.vLat = -side * (18 + Math.random() * 6);
+    this.cool = 0.35;
   }
   update(dt) {
     super.update(dt);
     this.prop.rotation.x += dt * 30;
-    // 遠くは遅く、画面内に入ったら加速
     const inFrame = Math.abs(this.lat) < 16;
-    const latSp = inFrame ? this.vLat * 1.35 : this.vLat * 0.55;
-    const dSp = inFrame ? 5 : 2;
+    const latSp = inFrame ? this.vLat * 1.45 : this.vLat * 0.7;
+    const dSp = inFrame ? 8 : 3.5;
     this.place(this.lat + latSp * dt, this.h, this.depth + dSp * dt);
     this.inner.rotation.z = Math.sin(this.t * 3) * 0.15;
     this.cool -= dt;
     if (this.cool <= 0 && Math.abs(this.lat) < 14) {
-      this.cool = 1.4 * this.game.relief();
-      shootAt(this.game, this.pos, 12.5, 0xffa03c, 0.55, 2.5);
+      this.cool = 0.75 * this.game.relief();
+      shootAt(this.game, this.pos, 14, 0xffa03c, 0.55, 2.5);
       this.game.audio.shoot();
     }
     if (Math.abs(this.lat) > 45 || this.depth > 18) this.remove();
@@ -614,12 +614,12 @@ export class Negi extends Enemy {
   update(dt) {
     super.update(dt);
     const dist = this.pos.distanceTo(this.game.player.pos);
-    const spd = dist > 25 ? 6 : dist > 10 ? 12 : 5; // 遠い遅・近づき速・近く並走
+    const spd = (dist > 25 ? 6 : dist > 10 ? 12 : 5) * 1.7;
     const to = this.game.player.pos.clone().sub(this.pos).normalize().multiplyScalar(spd);
-    this.vel.lerp(to, dt * (dist > 10 ? 0.9 : 0.4));
+    this.vel.lerp(to, dt * (dist > 10 ? 1.2 : 0.55));
     this.pos.addScaledVector(this.vel, dt);
     this.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), this.vel.clone().normalize());
-    if (this.t > 7 || this.pos.distanceTo(this.game.player.pos) > 130) this.remove();
+    if (this.t > 5 || this.pos.distanceTo(this.game.player.pos) > 130) this.remove();
   }
 }
 
@@ -670,9 +670,9 @@ export class Boss extends Enemy {
     head.add(mouth);
 
     head.scale.setScalar(1.3);
-    super(game, head, 60, 3.2, 5000);
-    this.place(0, 6, -55);
-    this.maxHp = 60;
+    super(game, head, 40, 3.2, 5000);
+    this.place(0, 6, -48);
+    this.maxHp = 40;
 
     // 体節(団子8個)
     this.segments = [];
@@ -683,7 +683,7 @@ export class Boss extends Enemy {
       this.segments.push(seg);
     }
     this.history = [];
-    this.cool = 2.5;
+    this.cool = 1.2;
     this.entered = false;
     this.rage = false;
   }
@@ -691,14 +691,14 @@ export class Boss extends Enemy {
     super.update(dt);
     const t = this.t;
     if (!this.entered) {
-      this.place(this.lat, this.h, this.depth + 12 * dt);
+      this.place(this.lat, this.h, this.depth + 22 * dt);
       if (this.depth >= -32) this.entered = true;
     } else {
-      const speed = this.rage ? 1.5 : 1.0;
+      const speed = this.rage ? 2.2 : 1.5;
       this.place(
-        Math.sin(t * 0.7 * speed) * 8,
-        5.2 + Math.sin(t * 1.13 * speed) * 3.2,
-        -32 + Math.sin(t * 0.43) * 6
+        Math.sin(t * 0.95 * speed) * 8,
+        5.2 + Math.sin(t * 1.4 * speed) * 3.2,
+        -32 + Math.sin(t * 0.55) * 6
       );
     }
     this.mesh.lookAt(this.game.player.pos);
@@ -717,14 +717,14 @@ export class Boss extends Enemy {
     if (this.entered) {
       this.cool -= dt;
       if (this.cool <= 0) {
-        this.cool = (this.rage ? 1.5 : 2.4) * this.game.relief();
+        this.cool = (this.rage ? 0.85 : 1.35) * this.game.relief();
         const n = this.rage ? 7 : 5;
         const base = this.game.player.pos.clone().sub(this.pos).normalize();
         for (let i = 0; i < n; i++) {
           const v = base.clone();
           v.addScaledVector(this.R, (i - (n - 1) / 2) * 0.16);
           v.y += (Math.random() - 0.5) * 0.1;
-          v.normalize().multiplyScalar(this.rage ? 13 : 10);
+          v.normalize().multiplyScalar(this.rage ? 14 : 11);
           spawnBullet(this.game, this.pos.clone().add(new THREE.Vector3(0, -0.7, 1.5)), v, 0xff7030, 0.7);
         }
         this.game.audio.shoot();

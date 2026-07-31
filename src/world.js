@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Dango, Shoyu, TeaDrone, Biplane, Negi, Boss, Udon, SanwariGirl, disposeObject, spawnDangoPack } from './enemies.js';
 
 const mat = c => new THREE.MeshToonMaterial({ color: c });
-const SCROLL = 26; // 地面が進む速さ(奥→手前 = frameF / scrollDir)
+const SCROLL = 42; // ペース圧縮に合わせて地面も速く
 
 // ===== 地面テクスチャ(明るめに描いて material.color で色調変化) =====
 function makeGroundTexture() {
@@ -170,79 +170,134 @@ export class World {
     const ev = [];
     const at = (t, fn) => ev.push({ t, fn });
     const msg = (t, text) => at(t, () => { g.ui.showStageMsg(text); g.audio.msg(); });
-    // ウェーブの少し前に方向転換(告知+旋回)
     const dir = (t, theta) => at(t, () => g.setWaveDir(theta));
     const L = Math.PI / 2, R = -Math.PI / 2, B = 0, FRONT = Math.PI;
+    // クリアまで約1/3: 旧144秒→約48秒でボス。敵数は維持〜増加。
 
-    // --- フェーズ1: 所沢上空 ---
-    msg(0.5, 'AREA 1 ─ 所沢上空');
-    at(2.5, () => spawnDangoPack(g, 'swarm')); // 8体まとめて
-    dir(7, L);
-    at(8, () => { new TeaDrone(g, -8, 6); new TeaDrone(g, 8, 4); new TeaDrone(g, -4, 7); new TeaDrone(g, 4, 3); });
-    dir(11, R);
-    at(12, () => spawnDangoPack(g, 'edge')); // 画面端から8体
-    dir(16, B);
-    at(17, () => spawnDangoPack(g, 'outback')); // 手前→奥→戻る
-    dir(21, FRONT);
-    at(22, () => { for (let i = 0; i < 4; i++) new Dango(g, -7.5 + i * 5, 3 + (i % 2) * 3, 'swarm'); new TeaDrone(g, 0, 6); });
-    dir(25, R);
-    at(26, () => spawnDangoPack(g, 'swarm'));
-    dir(30, L);
-    at(31, () => { new TeaDrone(g, 7, 7); new TeaDrone(g, -7, 3); new TeaDrone(g, 0, 5); });
-    dir(34, B);
+    // --- AREA1 所沢上空 (~0–12s) ---
+    msg(0.2, 'AREA 1 ─ 所沢上空');
+    at(0.8, () => spawnDangoPack(g, 'swarm'));
+    dir(2.2, L);
+    at(2.5, () => {
+      new TeaDrone(g, -8, 6); new TeaDrone(g, 8, 4); new TeaDrone(g, -4, 7); new TeaDrone(g, 4, 3);
+      new TeaDrone(g, 0, 5);
+    });
+    dir(3.5, R);
+    at(3.8, () => spawnDangoPack(g, 'edge'));
+    dir(5.2, B);
+    at(5.5, () => { spawnDangoPack(g, 'outback'); spawnDangoPack(g, 'swarm'); });
+    dir(7.0, FRONT);
+    at(7.2, () => {
+      for (let i = 0; i < 6; i++) new Dango(g, -9 + i * 3.5, 3 + (i % 2) * 3, 'swarm');
+      new TeaDrone(g, 0, 6); new TeaDrone(g, -6, 4);
+    });
+    dir(8.5, R);
+    at(8.8, () => spawnDangoPack(g, 'swarm'));
+    dir(10.0, L);
+    at(10.3, () => {
+      new TeaDrone(g, 7, 7); new TeaDrone(g, -7, 3); new TeaDrone(g, 0, 5); new TeaDrone(g, 4, 6);
+    });
+    dir(11.2, B);
 
-    // --- フェーズ2: プロペ通り商店街 ---
-    at(36, () => this.setPhase('street'));
-    msg(37, 'AREA 2 ─ プロペ通り商店街');
-    at(39, () => { new Shoyu(g, -6, 5); new Shoyu(g, 6, 5); new Udon(g, 0, 5); });
-    at(42, () => { new SanwariGirl(g, -4, 5); new SanwariGirl(g, 5, 6); });
-    at(44, () => { new Negi(g, -5, -30); new Negi(g, 5, -30); new Negi(g, 0, -40); });
-    dir(46.5, L);
-    at(48, () => { spawnDangoPack(g, 'swarm'); new Udon(g, -5, 4); new Udon(g, 5, 6); });
-    dir(52.5, R);
-    at(54, () => { new Negi(g, -8, -25); new Negi(g, 8, -25); new Shoyu(g, -5, 4); new Shoyu(g, 5, 6); new SanwariGirl(g, 0, 5.5); });
-    dir(58.5, L);
-    at(60, () => spawnDangoPack(g, 'edge'));
-    dir(64.5, B);
-    at(66, () => { new Shoyu(g, 0, 5); new Negi(g, -6, -28); new Negi(g, 6, -28); spawnDangoPack(g, 'outback'); new Udon(g, -3, 5); });
+    // --- AREA2 プロペ通り (~12–22s) ---
+    at(12.0, () => this.setPhase('street'));
+    msg(12.2, 'AREA 2 ─ プロペ通り商店街');
+    at(12.8, () => {
+      new Shoyu(g, -6, 5); new Shoyu(g, 6, 5); new Shoyu(g, 0, 7);
+      new Udon(g, -3, 5); new Udon(g, 3, 4);
+    });
+    at(14.0, () => {
+      new SanwariGirl(g, -4, 5); new SanwariGirl(g, 5, 6); new SanwariGirl(g, 0, 4);
+    });
+    at(14.6, () => {
+      new Negi(g, -5, -30); new Negi(g, 5, -30); new Negi(g, 0, -40); new Negi(g, -8, -35); new Negi(g, 8, -35);
+    });
+    dir(15.2, L);
+    at(15.6, () => {
+      spawnDangoPack(g, 'swarm');
+      new Udon(g, -5, 4); new Udon(g, 5, 6); new Udon(g, 0, 5);
+    });
+    dir(17.2, R);
+    at(17.6, () => {
+      new Negi(g, -8, -25); new Negi(g, 8, -25); new Negi(g, 0, -28);
+      new Shoyu(g, -5, 4); new Shoyu(g, 5, 6);
+      new SanwariGirl(g, 0, 5.5);
+    });
+    dir(19.2, L);
+    at(19.6, () => { spawnDangoPack(g, 'edge'); new TeaDrone(g, -4, 6); new TeaDrone(g, 4, 5); });
+    dir(21.2, B);
+    at(21.6, () => {
+      new Shoyu(g, 0, 5); new Negi(g, -6, -28); new Negi(g, 6, -28);
+      spawnDangoPack(g, 'outback');
+      new Udon(g, -3, 5); new Udon(g, 3, 6);
+    });
 
-    // --- フェーズ3: 航空記念公園 ---
-    at(72, () => this.setPhase('park'));
-    msg(73, 'AREA 3 ─ 航空記念公園');
-    at(75, () => { new Biplane(g, 1, 5); new Biplane(g, -1, 7); });
-    dir(78.5, L);
-    at(80, () => { new Biplane(g, 1, 3); new Biplane(g, 1, 6); new TeaDrone(g, -7, 5); new Udon(g, 4, 5); });
-    dir(84.5, R);
-    at(86, () => { new Biplane(g, -1, 4); new Biplane(g, -1, 7); new Biplane(g, 1, 5.5); new SanwariGirl(g, -2, 6); });
-    dir(90.5, FRONT); // 正面へ大旋回!
-    at(92, () => { spawnDangoPack(g, 'swarm'); new Biplane(g, 1, 6); });
-    dir(96.5, B);
-    at(98, () => { new Biplane(g, -1, 3); new Biplane(g, 1, 7); new TeaDrone(g, 0, 8); new Negi(g, 0, -30); });
+    // --- AREA3 航空公園 (~24–33s) ---
+    at(24.0, () => this.setPhase('park'));
+    msg(24.2, 'AREA 3 ─ 航空記念公園');
+    at(25.0, () => {
+      new Biplane(g, 1, 5); new Biplane(g, -1, 7); new Biplane(g, 1, 3); new Biplane(g, -1, 4);
+    });
+    dir(26.0, L);
+    at(26.4, () => {
+      new Biplane(g, 1, 3); new Biplane(g, 1, 6); new Biplane(g, -1, 5);
+      new TeaDrone(g, -7, 5); new Udon(g, 4, 5); new Udon(g, -4, 6);
+    });
+    dir(28.0, R);
+    at(28.4, () => {
+      new Biplane(g, -1, 4); new Biplane(g, -1, 7); new Biplane(g, 1, 5.5); new Biplane(g, 1, 2.5);
+      new SanwariGirl(g, -2, 6); new SanwariGirl(g, 3, 4);
+    });
+    dir(30.0, FRONT);
+    at(30.4, () => { spawnDangoPack(g, 'swarm'); spawnDangoPack(g, 'edge'); new Biplane(g, 1, 6); });
+    dir(32.0, B);
+    at(32.4, () => {
+      new Biplane(g, -1, 3); new Biplane(g, 1, 7); new Biplane(g, -1, 6);
+      new TeaDrone(g, 0, 8); new TeaDrone(g, -5, 4);
+      new Negi(g, 0, -30); new Negi(g, -6, -25); new Negi(g, 6, -25);
+    });
 
-    // --- フェーズ4: 米軍通信基地 ---
-    at(105, () => this.setPhase('base'));
-    msg(106, 'AREA 4 ─ 米軍通信基地');
-    at(108, () => { new Shoyu(g, -7, 6); new Shoyu(g, 7, 6); new Negi(g, 0, -30); new Udon(g, 0, 4); });
-    dir(112.5, L);
-    at(114, () => { new Biplane(g, 1, 5); new Biplane(g, -1, 5); new TeaDrone(g, -6, 7); new TeaDrone(g, 6, 3); new SanwariGirl(g, 0, 5); });
-    dir(118.5, FRONT);
-    at(120, () => spawnDangoPack(g, 'edge'));
-    dir(124.5, R);
-    at(126, () => { new Negi(g, -7, -25); new Negi(g, 7, -25); new Negi(g, 0, -35); new Biplane(g, 1, 6); new Biplane(g, -1, 4); });
-    dir(130.5, B);
-    at(132, () => { new Shoyu(g, -6, 4); new Shoyu(g, 6, 7); new TeaDrone(g, 0, 6); spawnDangoPack(g, 'outback'); new Udon(g, -5, 6); new SanwariGirl(g, 4, 5); });
+    // --- AREA4 通信基地 (~35–44s) ---
+    at(35.0, () => this.setPhase('base'));
+    msg(35.2, 'AREA 4 ─ 米軍通信基地');
+    at(35.8, () => {
+      new Shoyu(g, -7, 6); new Shoyu(g, 7, 6); new Shoyu(g, 0, 4);
+      new Negi(g, 0, -30); new Negi(g, -5, -28);
+      new Udon(g, 0, 4); new Udon(g, -6, 5); new Udon(g, 6, 5);
+    });
+    dir(37.2, L);
+    at(37.6, () => {
+      new Biplane(g, 1, 5); new Biplane(g, -1, 5); new Biplane(g, 1, 7); new Biplane(g, -1, 3);
+      new TeaDrone(g, -6, 7); new TeaDrone(g, 6, 3); new TeaDrone(g, 0, 5);
+      new SanwariGirl(g, 0, 5); new SanwariGirl(g, -5, 6);
+    });
+    dir(39.2, FRONT);
+    at(39.6, () => { spawnDangoPack(g, 'edge'); spawnDangoPack(g, 'swarm'); });
+    dir(41.2, R);
+    at(41.6, () => {
+      new Negi(g, -7, -25); new Negi(g, 7, -25); new Negi(g, 0, -35); new Negi(g, -3, -30); new Negi(g, 3, -30);
+      new Biplane(g, 1, 6); new Biplane(g, -1, 4); new Biplane(g, 1, 3);
+    });
+    dir(43.2, B);
+    at(43.6, () => {
+      new Shoyu(g, -6, 4); new Shoyu(g, 6, 7); new Shoyu(g, 0, 6);
+      new TeaDrone(g, 0, 6); new TeaDrone(g, -8, 4);
+      spawnDangoPack(g, 'outback');
+      new Udon(g, -5, 6); new Udon(g, 5, 4);
+      new SanwariGirl(g, 4, 5); new SanwariGirl(g, -3, 5);
+    });
 
-    // --- ボス(後方に戻して決戦) ---
-    dir(138, B);
-    msg(140, '？？？ 「よくぞここまで来たな…」');
-    at(144, () => this.startBoss());
+    // --- ボス (~46–48s) ---
+    dir(45.5, B);
+    msg(46.0, '？？？ 「よくぞここまで来たな…」');
+    at(47.5, () => this.startBoss());
     return ev;
   }
 
   startBoss() {
     const g = this.game;
     this.bossStarted = true;
-    g.ui.showStageMsg('BOSS ─ ヤキダンゴドラゴン !!', 3500);
+    g.ui.showStageMsg('BOSS ─ ヤキダンゴドラゴン !!', 2200);
     g.audio.msg();
     g.audio.startBGM('boss');
     g.boss = new Boss(g);
