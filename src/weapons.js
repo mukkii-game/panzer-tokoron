@@ -25,6 +25,7 @@ export class Weapons {
     this.locks = [];
     this.maxLocks = 8;
     this.shotCool = 0;
+    this.lockCool = 0; // 連続ロックのディレイ(カカカカ感)
     this._v = new THREE.Vector3();
     this._raycaster = new THREE.Raycaster();
     this._aimPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 45);
@@ -81,9 +82,15 @@ export class Weapons {
   sweepLocks() {
     const { game } = this;
     if (this.locks.length >= this.maxLocks) return;
+    if (this.lockCool > 0) return;
     const aim = game.input.aim;
     const F = game.frameF(game.viewYaw);
     const v = this._v;
+    let best = null;
+    let bestDist = Infinity;
+    let range = Math.min(innerWidth, innerHeight) * 0.12 + 40;
+    if (game.input.isTouch) range *= 1.7;
+
     for (const e of game.enemies) {
       if (!e.alive || !e.lockable || e.locked) continue;
       if (v.copy(e.pos).sub(game.player.pos).dot(F) > -4) continue;
@@ -92,15 +99,18 @@ export class Weapons {
       const sx = (v.x + 1) * 0.5 * innerWidth;
       const sy = (-v.y + 1) * 0.5 * innerHeight;
       const dist = Math.hypot(sx - aim.x, sy - aim.y);
-      let range = Math.min(innerWidth, innerHeight) * 0.12 + 40;
-      if (game.input.isTouch) range *= 1.7;
-      if (dist < range) {
-        e.setLocked(true);
-        this.locks.push(e);
-        game.audio.lock(this.locks.length);
-        game.ui.setLock(this.locks.length);
-        if (this.locks.length >= this.maxLocks) break;
+      if (dist < range && dist < bestDist) {
+        bestDist = dist;
+        best = e;
       }
+    }
+    // 1体だけロック → 数フレーム待って次(カカカカカ)
+    if (best) {
+      best.setLocked(true);
+      this.locks.push(best);
+      game.audio.lock(this.locks.length);
+      game.ui.setLock(this.locks.length);
+      this.lockCool = 0.038; // 約2フレ@60fps
     }
   }
 
@@ -180,6 +190,7 @@ export class Weapons {
     const input = game.input;
 
     this.shotCool -= dt;
+    this.lockCool = Math.max(0, this.lockCool - dt);
     if (input.firing && !game.player.dead && this.shotCool <= 0) {
       this.fireShot();
       this.shotCool = 0.13;
