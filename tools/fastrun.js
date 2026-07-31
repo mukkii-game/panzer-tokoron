@@ -46,43 +46,52 @@ const result = await page.evaluate(async (heal) => {
 
   const bot = () => {
     const p = game.player;
-    let mx = (0 - p.pos.x) * 0.1, my = (5 - p.pos.y) * 0.1;
-    // 弾の着弾点(z=0到達時のx,y)を予測して危険なら逃げる
+    // ビュー座標系(lat=カメラ右方向, dep=カメラ手前方向)で判断する
+    const vy = game.viewYaw;
+    const Fx = Math.sin(vy), Fz = Math.cos(vy);
+    const Rx = Math.cos(vy), Rz = -Math.sin(vy);
+    const latOf = v => v.x * Rx + v.z * Rz;
+    const depOf = v => v.x * Fx + v.z * Fz;
+    const plat = latOf(p.pos), pdep = depOf(p.pos);
+    let mx = (0 - plat) * 0.1, my = (5 - p.pos.y) * 0.1;
+    // 弾の着弾点(自機の奥行き面到達時のlat,y)を予測して危険なら逃げる
     let danger = null, dscore = 1e9;
     for (const b of game.enemyBullets) {
       const bp = b.mesh.position, bv = b.vel;
-      if (bv.z <= 0.5) continue;
-      const t = (p.pos.z - bp.z) / bv.z;
+      const app = bv.x * Fx + bv.z * Fz; // 接近速度
+      if (app <= 0.5) continue;
+      const t = (pdep - depOf(bp)) / app;
       if (t < 0 || t > 2.0) continue;
-      const ix = bp.x + bv.x * t;
+      const ilat = latOf(bp) + (bv.x * Rx + bv.z * Rz) * t;
       const iy = bp.y + bv.y * t - (b.gravity ? 0.5 * b.gravity * t * t : 0);
-      const d = Math.hypot(ix - p.pos.x, iy - p.pos.y) + t; // 近い&早い着弾を優先
-      if (d < dscore) { dscore = d; danger = { ix, iy, d: Math.hypot(ix - p.pos.x, iy - p.pos.y) }; }
+      const d = Math.hypot(ilat - plat, iy - p.pos.y) + t; // 近い&早い着弾を優先
+      if (d < dscore) { dscore = d; danger = { ilat, iy, d: Math.hypot(ilat - plat, iy - p.pos.y) }; }
     }
     if (danger && danger.d < 3.5) {
-      mx = p.pos.x >= danger.ix ? 1 : -1;
+      mx = plat >= danger.ilat ? 1 : -1;
       my = p.pos.y >= danger.iy ? 1 : -1;
       if (p.pos.y > 8.5) my = -1;
       if (p.pos.y < 2) my = 1;
-      if (p.pos.x > 8.5) mx = -1;
-      if (p.pos.x < -8.5) mx = 1;
+      if (plat > 8.5) mx = -1;
+      if (plat < -8.5) mx = 1;
     }
     // 突進系のレーンに立たない + 近い敵から離れる
     for (const e of game.enemies) {
       if (!e.alive) continue;
-      if (e.pos.z > -35 && Math.abs(e.pos.x - p.pos.x) < 2.8 && Math.abs(e.pos.y - p.pos.y) < 2.8) {
-        mx = p.pos.x >= e.pos.x ? 1 : -1;
-        if (p.pos.x > 8.5) mx = -1; if (p.pos.x < -8.5) mx = 1;
+      const elat = latOf(e.pos);
+      if (depOf(e.pos) - pdep > -35 && Math.abs(elat - plat) < 2.8 && Math.abs(e.pos.y - p.pos.y) < 2.8) {
+        mx = plat >= elat ? 1 : -1;
+        if (plat > 8.5) mx = -1; if (plat < -8.5) mx = 1;
         break;
       }
     }
     // HPが減ったらハートを拾いに行く
     if (p.hp <= 3 && game.pickups.length > 0 && (!danger || danger.d >= 3.5)) {
       const pk = game.pickups[0].mesh.position;
-      if (Math.abs(pk.z) < 12) { mx = pk.x > p.pos.x ? 1 : -1; my = pk.y > p.pos.y ? 1 : -1; }
+      if (pk.distanceTo(p.pos) < 15) { mx = latOf(pk) > plat ? 1 : -1; my = pk.y > p.pos.y ? 1 : -1; }
     }
     game.input.getMove = () => ({ x: Math.max(-1, Math.min(1, mx)), y: Math.max(-1, Math.min(1, my)) });
-    const target = game.boss && game.boss.alive ? game.boss : game.enemies.find(e => e.alive && e.pos.z < -6);
+    const target = game.boss && game.boss.alive ? game.boss : game.enemies.find(e => e.alive && depOf(e.pos) - pdep < -6);
     if (target) {
       const v = target.pos.clone().project(game.camera);
       game.input.aim.x = (v.x + 1) * 0.5 * innerWidth;

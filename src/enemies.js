@@ -29,6 +29,8 @@ export function disposeObject(obj) {
   });
 }
 
+// 敵はウェーブ方向 theta のローカル座標系で動く:
+//   lat=横位置, h=高さ, depth=奥行き(マイナスが奥、0が自機面、+で通過)
 export class Enemy {
   constructor(game, group, hp, radius, score = 100) {
     this.game = game;
@@ -38,6 +40,14 @@ export class Enemy {
     this.t = 0;
     this.lockable = true;
     this.locked = false;
+
+    // ウェーブ方向の座標系
+    this.theta = game.waveDir;
+    this.F = game.frameF(this.theta); // 奥(スポーン側)→自機方向が +
+    this.R = game.frameR(this.theta);
+    this.lat = 0; this.h = 4; this.depth = -80;
+    group.rotation.y = this.theta;
+
     const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: getLockTex(), transparent: true, depthTest: false }));
     spr.scale.setScalar(radius * 2.6);
     spr.visible = false;
@@ -47,6 +57,14 @@ export class Enemy {
     game.enemies.push(this);
   }
   get pos() { return this.mesh.position; }
+  place(lat = this.lat, h = this.h, depth = this.depth) {
+    this.lat = lat; this.h = h; this.depth = depth;
+    this.mesh.position.set(
+      this.R.x * lat + this.F.x * depth,
+      h,
+      this.R.z * lat + this.F.z * depth
+    );
+  }
   setLocked(v) { this.locked = v; this.lockSprite.visible = v; }
   damage(n, viaHoming = false) {
     if (!this.alive) return;
@@ -74,14 +92,14 @@ export class Enemy {
   update(dt) { this.t += dt; }
 }
 
-// ===== 弾 =====
-export function spawnBullet(game, from, vel, color = 0x5a2c10, r = 0.3, gravity = 0) {
-  const m = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), new THREE.MeshBasicMaterial({ color }));
+// ===== 弾(全体的に大きめ) =====
+export function spawnBullet(game, from, vel, color = 0x5a2c10, r = 0.55, gravity = 0) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), new THREE.MeshBasicMaterial({ color }));
   m.position.copy(from);
   game.scene.add(m);
   game.enemyBullets.push({ mesh: m, vel: vel.clone(), r, gravity, life: 7 });
 }
-export function shootAt(game, from, speed, color, r = 0.3, spread = 0) {
+export function shootAt(game, from, speed, color, r = 0.55, spread = 0) {
   const target = game.player.pos.clone();
   target.x += (Math.random() - 0.5) * spread;
   target.y += (Math.random() - 0.5) * spread;
@@ -93,7 +111,7 @@ export function shootAt(game, from, speed, color, r = 0.3, spread = 0) {
 export function spawnExplosion(game, pos, size = 1, colors = [0xffdd55, 0xff8833, 0xffffff]) {
   const parts = [];
   for (let i = 0; i < 9; i++) {
-    const m = new THREE.Mesh(new THREE.SphereGeometry(0.28 * size, 6, 5), new THREE.MeshBasicMaterial({ color: colors[i % colors.length] }));
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.32 * size, 6, 5), new THREE.MeshBasicMaterial({ color: colors[i % colors.length] }));
     m.position.copy(pos);
     const v = new THREE.Vector3((Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)).normalize().multiplyScalar(6 + Math.random() * 5);
     game.scene.add(m);
@@ -116,18 +134,22 @@ export class Dango extends Enemy {
       ball.scale.y = 0.9;
       g.add(ball);
     }
-    g.position.set(x, y, -85);
     super(game, g, 1, 1.05);
-    this.baseX = x;
+    this.baseLat = x;
+    this.place(x, y, -85);
     this.speed = 19 + Math.random() * 5;
     this.phase = Math.random() * 7;
+    this.spin = g.children[0]; // 串ごと回すためgroup全体をz回転
   }
   update(dt) {
     super.update(dt);
-    this.pos.z += this.speed * dt;
-    this.pos.x = this.baseX + Math.sin(this.t * 2 + this.phase) * 1.6;
+    this.place(
+      this.baseLat + Math.sin(this.t * 2 + this.phase) * 1.6,
+      this.h,
+      this.depth + this.speed * dt
+    );
     this.mesh.rotation.z += dt * 4;
-    if (this.pos.z > 14) this.remove();
+    if (this.depth > 14) this.remove();
   }
 }
 
@@ -145,17 +167,16 @@ export class Shoyu extends Enemy {
     const label = new THREE.Mesh(new THREE.CylinderGeometry(0.74, 0.78, 0.6, 14), mat(0xf5e8c8));
     label.position.y = -0.1; label.scale.z = 0.85;
     g.add(label);
-    g.position.set(x, y, -80);
     super(game, g, 3, 1.2, 200);
-    this.holdZ = -26 - Math.random() * 8;
+    this.place(x, y, -80);
+    this.holdDepth = -26 - Math.random() * 8;
     this.cool = 1.2 + Math.random();
   }
   update(dt) {
     super.update(dt);
-    if (this.pos.z < this.holdZ) this.pos.z += 20 * dt;
+    if (this.depth < this.holdDepth) this.place(this.lat, this.h, this.depth + 20 * dt);
     else {
-      this.pos.z += 1.5 * dt;
-      this.pos.y += Math.sin(this.t * 2.2) * dt * 1.2;
+      this.place(this.lat, this.h + Math.sin(this.t * 2.2) * dt * 1.2, this.depth + 1.5 * dt);
       this.mesh.rotation.z = Math.sin(this.t * 8) * 0.12; // シェイク
       this.cool -= dt;
       if (this.cool <= 0) {
@@ -166,11 +187,11 @@ export class Shoyu extends Enemy {
         const g0 = 9;
         v.multiplyScalar(1 / time);
         v.y += g0 * time * 0.5;
-        spawnBullet(this.game, this.pos, v, 0x3b1206, 0.5, g0);
+        spawnBullet(this.game, this.pos, v, 0x3b1206, 0.65, g0);
         this.game.audio.shoot();
       }
     }
-    if (this.pos.z > 14) this.remove();
+    if (this.depth > 14) this.remove();
   }
 }
 
@@ -188,33 +209,34 @@ export class TeaDrone extends Enemy {
     rotor.scale.set(1, 0.05, 0.16);
     rotor.position.y = 0.95;
     g.add(rotor);
-    g.position.set(x, y, -75);
     super(game, g, 2, 1.15, 150);
     this.rotor = rotor;
+    this.place(x, y, -75);
     this.dir = x > 0 ? -1 : 1;
     this.cool = 1.5 + Math.random();
   }
   update(dt) {
     super.update(dt);
     this.rotor.rotation.y += dt * 20;
-    if (this.pos.z < -20) this.pos.z += 16 * dt;
+    if (this.depth < -20) this.place(this.lat, this.h, this.depth + 16 * dt);
     else {
-      this.pos.z += 2 * dt;
-      this.pos.x += this.dir * 4.5 * dt;
-      if (Math.abs(this.pos.x) > 13) this.dir *= -1;
+      let lat = this.lat + this.dir * 4.5 * dt;
+      if (Math.abs(lat) > 13) this.dir *= -1;
+      this.place(lat, this.h, this.depth + 2 * dt);
       this.cool -= dt;
       if (this.cool <= 0) {
         this.cool = 2.8 * this.game.relief();
         const base = this.game.player.pos.clone().sub(this.pos).normalize();
         for (let i = -1; i <= 1; i++) {
           const v = base.clone();
-          v.x += i * 0.22; v.normalize().multiplyScalar(10);
-          spawnBullet(this.game, this.pos, v, 0x86b829, 0.3);
+          v.addScaledVector(this.R, i * 0.22);
+          v.normalize().multiplyScalar(10);
+          spawnBullet(this.game, this.pos, v, 0x86b829, 0.52);
         }
         this.game.audio.shoot();
       }
     }
-    if (this.pos.z > 14) this.remove();
+    if (this.depth > 14) this.remove();
   }
 }
 
@@ -222,44 +244,46 @@ export class TeaDrone extends Enemy {
 export class Biplane extends Enemy {
   constructor(game, side, y) {
     const g = new THREE.Group();
+    const inner = new THREE.Group(); // 向き調整用
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 1.5, 4, 10), mat(0xc8b485));
     body.rotation.z = Math.PI / 2;
-    g.add(body);
+    inner.add(body);
     for (const h of [0.45, -0.15]) {
       const wing = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.07, 2.9), mat(0xe8dcc0));
       wing.position.set(0.15, h, 0);
-      g.add(wing);
+      inner.add(wing);
     }
     const tailW = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.06, 1.1), mat(0xe8dcc0));
-    tailW.position.set(-1.0, 0.15, 0); g.add(tailW);
+    tailW.position.set(-1.0, 0.15, 0); inner.add(tailW);
     const prop = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6), mat(0x6b4a20));
     prop.scale.set(0.06, 1, 0.16);
     prop.position.x = 1.05;
-    g.add(prop);
-    g.position.set(side * 26, y, -38 - Math.random() * 15);
-    g.rotation.y = side > 0 ? Math.PI : 0;
+    inner.add(prop);
+    inner.rotation.y = side > 0 ? Math.PI : 0;
+    g.add(inner);
     super(game, g, 2, 1.3, 150);
     this.prop = prop;
-    this.vx = -side * (13 + Math.random() * 5);
+    this.place(side * 26, y, -38 - Math.random() * 15);
+    this.vLat = -side * (13 + Math.random() * 5);
+    this.inner = inner;
     this.cool = 0.7;
   }
   update(dt) {
     super.update(dt);
     this.prop.rotation.x += dt * 30;
-    this.pos.x += this.vx * dt;
-    this.pos.z += 3.5 * dt;
-    this.mesh.rotation.z = Math.sin(this.t * 3) * 0.15;
+    this.place(this.lat + this.vLat * dt, this.h, this.depth + 3.5 * dt);
+    this.inner.rotation.z = Math.sin(this.t * 3) * 0.15;
     this.cool -= dt;
-    if (this.cool <= 0 && Math.abs(this.pos.x) < 15) {
+    if (this.cool <= 0 && Math.abs(this.lat) < 15) {
       this.cool = 1.5 * this.game.relief();
-      shootAt(this.game, this.pos, 12.5, 0xffa03c, 0.28, 2.5);
+      shootAt(this.game, this.pos, 12.5, 0xffa03c, 0.55, 2.5);
       this.game.audio.shoot();
     }
-    if (Math.abs(this.pos.x) > 30 || this.pos.z > 14) this.remove();
+    if (Math.abs(this.lat) > 30 || this.depth > 14) this.remove();
   }
 }
 
-// ネギミサイル — 下から発射、ゆる追尾
+// ネギミサイル — 下から発射、ゆる追尾(ワールド座標で追尾)
 export class Negi extends Enemy {
   constructor(game, x, z) {
     const g = new THREE.Group();
@@ -270,8 +294,8 @@ export class Negi extends Enemy {
     const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.8, 8), mat(0x6fb84a));
     leaf.position.set(0.18, 1.3, 0); leaf.rotation.z = -0.35;
     g.add(leaf);
-    g.position.set(x, -2, z);
     super(game, g, 1, 1.0);
+    this.place(x, -2, z);
     this.vel = new THREE.Vector3(0, 9, 0);
   }
   update(dt) {
@@ -280,19 +304,18 @@ export class Negi extends Enemy {
     this.vel.lerp(to, dt * 0.7);
     this.pos.addScaledVector(this.vel, dt);
     this.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), this.vel.clone().normalize());
-    if (this.t > 6 || this.pos.z > 14) this.remove();
+    if (this.t > 6 || this.pos.distanceTo(this.game.player.pos) > 130) this.remove();
   }
 }
 
-// ===== ボス: ヤキダンゴドラゴン =====
+// ===== ボス: ヤキダンゴドラゴン(常に後方=theta 0 で出現) =====
 export class Boss extends Enemy {
   constructor(game) {
     const head = new THREE.Group();
     const skull = new THREE.Mesh(new THREE.SphereGeometry(2.2, 20, 16), mat(0xa06a35));
     skull.scale.set(1, 0.95, 1.05);
     head.add(skull);
-    // 焼き目
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 5; i++) { // 焼き目
       const burn = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 6), mat(0x6b3d14));
       const a = i * 1.7, b = i * 0.9;
       burn.position.set(Math.sin(a) * 1.9, Math.cos(b) * 1.5, Math.cos(a) * 1.4);
@@ -300,8 +323,7 @@ export class Boss extends Enemy {
       burn.lookAt(0, 0, 0);
       head.add(burn);
     }
-    // 目(怒り)
-    for (const s of [-1, 1]) {
+    for (const s of [-1, 1]) { // 目(怒り)
       const eyeW = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 10), mat(0xffffff));
       eyeW.position.set(s * 0.85, 0.55, 1.75);
       head.add(eyeW);
@@ -313,21 +335,19 @@ export class Boss extends Enemy {
       brow.rotation.z = -s * 0.5;
       head.add(brow);
     }
-    // 角=串
-    for (const s of [-1, 1]) {
+    for (const s of [-1, 1]) { // 角=串
       const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, 2.2, 8), mat(0xd8b57e));
       horn.position.set(s * 1.1, 2.2, -0.3);
       horn.rotation.z = -s * 0.35;
       head.add(horn);
     }
-    // 口
     const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.75, 12, 10), mat(0x571c08));
     mouth.position.set(0, -0.7, 1.7); mouth.scale.set(1.15, 0.6, 0.5);
     head.add(mouth);
 
     head.scale.setScalar(1.3);
-    head.position.set(0, 6, -55);
     super(game, head, 60, 3.2, 5000);
+    this.place(0, 6, -55);
     this.maxHp = 60;
 
     // 体節(団子8個)
@@ -347,13 +367,15 @@ export class Boss extends Enemy {
     super.update(dt);
     const t = this.t;
     if (!this.entered) {
-      this.pos.z += 12 * dt;
-      if (this.pos.z >= -32) this.entered = true;
+      this.place(this.lat, this.h, this.depth + 12 * dt);
+      if (this.depth >= -32) this.entered = true;
     } else {
       const speed = this.rage ? 1.5 : 1.0;
-      this.pos.x = Math.sin(t * 0.7 * speed) * 8;
-      this.pos.y = 5.2 + Math.sin(t * 1.13 * speed) * 3.2;
-      this.pos.z = -32 + Math.sin(t * 0.43) * 6;
+      this.place(
+        Math.sin(t * 0.7 * speed) * 8,
+        5.2 + Math.sin(t * 1.13 * speed) * 3.2,
+        -32 + Math.sin(t * 0.43) * 6
+      );
     }
     this.mesh.lookAt(this.game.player.pos);
 
@@ -376,10 +398,10 @@ export class Boss extends Enemy {
         const base = this.game.player.pos.clone().sub(this.pos).normalize();
         for (let i = 0; i < n; i++) {
           const v = base.clone();
-          v.x += (i - (n - 1) / 2) * 0.16;
+          v.addScaledVector(this.R, (i - (n - 1) / 2) * 0.16);
           v.y += (Math.random() - 0.5) * 0.1;
-          v.normalize().multiplyScalar(this.rage ? 13 : 11);
-          spawnBullet(this.game, this.pos.clone().add(new THREE.Vector3(0, -0.7, 1.5)), v, 0xff7030, 0.42);
+          v.normalize().multiplyScalar(this.rage ? 13 : 10);
+          spawnBullet(this.game, this.pos.clone().add(new THREE.Vector3(0, -0.7, 1.5)), v, 0xff7030, 0.7);
         }
         this.game.audio.shoot();
       }

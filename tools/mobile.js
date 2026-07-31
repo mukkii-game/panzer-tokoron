@@ -58,7 +58,7 @@ const lockRes = await page.evaluate(async () => {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   // 敵の画面位置を得る
   for (let i = 0; i < 20; i++) {
-    const e = game.enemies.find(e => e.alive && e.pos.z < -6);
+    const e = game.enemies.find(e => e.alive && e.pos.distanceTo(game.player.pos) > 7);
     if (e) {
       const v = e.pos.clone().project(game.camera);
       return { x: (v.x + 1) * 0.5 * innerWidth, y: (-v.y + 1) * 0.5 * innerHeight };
@@ -73,7 +73,7 @@ if (lockRes) {
   const t0 = Date.now();
   while (Date.now() - t0 < 2200) {
     const p = await page.evaluate(() => {
-      const e = game.enemies.find(e => e.alive && e.pos.z < -6);
+      const e = game.enemies.find(e => e.alive && e.pos.distanceTo(game.player.pos) > 7);
       if (!e) return null;
       const v = e.pos.clone().project(game.camera);
       return { x: (v.x + 1) * 0.5 * innerWidth, y: (-v.y + 1) * 0.5 * innerHeight };

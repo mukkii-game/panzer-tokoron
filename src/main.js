@@ -47,6 +47,23 @@ const game = {
   boss: null,
   homingSalvo: null,
   player: null, weapons: null, world: null,
+  waveDir: 0,   // 敵ウェーブの方向(目標角)
+  viewYaw: 0,   // カメラ/自機のビュー回転(滑らかに追従)
+
+  // 敵の来る方向をセット(360度)。方向が変わったら告知
+  setWaveDir(theta) {
+    let d = theta - this.waveDir;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    if (Math.abs(d) < 0.2) { this.waveDir = theta; return; }
+    this.waveDir = theta;
+    const label = Math.abs(d) > 2.6 ? '⟲ うしろから来るよ！' : d > 0 ? '⬅ ひだりから来るよ！' : '➡ みぎから来るよ！';
+    this.ui.showStageMsg(label, 1800);
+    this.audio.msg();
+  },
+  // ビュー座標系の基底ベクトル
+  frameF(theta = this.waveDir) { return new THREE.Vector3(Math.sin(theta), 0, Math.cos(theta)); },
+  frameR(theta = this.waveDir) { return new THREE.Vector3(Math.cos(theta), 0, -Math.sin(theta)); },
 
   addScore(v) { this.score += v; this.ui.setScore(this.score); },
 
@@ -112,31 +129,46 @@ game.world = new World(game);
 game.ui.setHearts(5);
 game.ui.setScore(0);
 
-// ================== カメラ更新 ==================
+// ================== カメラ更新(360度ビュー回転対応) ==================
 function updateCamera(dt) {
+  // ビュー回転を目標方向へ滑らかに追従(最短経路)
+  let dd = game.waveDir - game.viewYaw;
+  while (dd > Math.PI) dd -= Math.PI * 2;
+  while (dd < -Math.PI) dd += Math.PI * 2;
+  game.viewYaw += dd * Math.min(1, dt * 1.6);
+
+  const vyaw = game.viewYaw;
   const p = game.player.pos;
-  // 自機移動に部分追従した注視の中心
+  // 自機移動に部分追従した注視の中心(ワールド)
   const cx = p.x * CAM.follow;
+  const cz = p.z * CAM.follow;
   const cy = 4.5 + (p.y - 4.5) * CAM.follow;
 
-  // 照準でゆるく首を振る(180度以内・仰角制限内)
+  // 照準でゆるく首を振る
   const ax = (game.input.aim.x / innerWidth) * 2 - 1;
   const ay = (game.input.aim.y / innerHeight) * 2 - 1;
-  const yaw = THREE.MathUtils.clamp(CAM.yaw + ax * CAM.swayYaw, -1.2, 1.2);
+  const yawOff = THREE.MathUtils.clamp(CAM.yaw + ax * CAM.swayYaw, -1.2, 1.2);
   const pitch = THREE.MathUtils.clamp(CAM.pitch - ay * CAM.swayPitch, 0.08, 1.05);
+  const totalYaw = vyaw + yawOff;
 
   // 縦画面(スマホ)では距離を伸ばして視界を確保
   const aspect = innerWidth / innerHeight;
   const dist = CAM.dist * (aspect >= 1 ? 1 : 1 + (1 - aspect) * 0.9);
 
-  const tx = cx + Math.sin(yaw) * Math.cos(pitch) * dist;
+  const tx = cx + Math.sin(totalYaw) * Math.cos(pitch) * dist;
   const ty = cy + Math.sin(pitch) * dist;
-  const tz = Math.cos(yaw) * Math.cos(pitch) * dist;
+  const tz = cz + Math.cos(totalYaw) * Math.cos(pitch) * dist;
   const k = Math.min(1, dt * 5);
   camera.position.x += (tx - camera.position.x) * k;
   camera.position.y += (ty - camera.position.y) * k;
   camera.position.z += (tz - camera.position.z) * k;
-  camera.lookAt(cx - Math.sin(yaw) * 4, cy + CAM.lookUp, -CAM.lookBack);
+  // 注視点: 中心から敵方向(奥)へ
+  const lookYaw = vyaw + yawOff * 0.55;
+  camera.lookAt(
+    cx - Math.sin(lookYaw) * CAM.lookBack,
+    cy + CAM.lookUp,
+    cz - Math.cos(lookYaw) * CAM.lookBack
+  );
 }
 camera.position.set(Math.sin(CAM.yaw) * CAM.dist, 10, CAM.dist);
 
@@ -164,7 +196,7 @@ function updateCollisions(dt) {
     if (b.gravity) b.vel.y -= b.gravity * dt;
     b.mesh.position.addScaledVector(b.vel, dt);
     b.life -= dt;
-    let dead = b.life <= 0 || b.mesh.position.z > 20 || b.mesh.position.y < -3;
+    let dead = b.life <= 0 || b.mesh.position.y < -3 || b.mesh.position.distanceTo(p.pos) > 110;
     if (!dead && !p.dead) {
       const d = b.mesh.position.distanceTo(p.pos);
       if (d < b.r + p.radius) {
@@ -213,9 +245,11 @@ function updatePickups(dt) {
   for (let i = game.pickups.length - 1; i >= 0; i--) {
     const pk = game.pickups[i];
     pk.t += dt;
-    pk.mesh.position.z += 9 * dt;
+    const f = game.frameF(game.viewYaw);
+    pk.mesh.position.x += f.x * 9 * dt;
+    pk.mesh.position.z += f.z * 9 * dt;
     pk.mesh.position.y += Math.sin(pk.t * 4) * dt * 1.5;
-    let done = pk.mesh.position.z > 15 || pk.t > 12;
+    let done = pk.t > 12 || pk.mesh.position.distanceTo(p.pos) > 120;
     if (!p.dead && pk.mesh.position.distanceTo(p.pos) < 1.8) {
       if (p.hp < p.maxHp) { p.hp++; game.ui.setHearts(p.hp); }
       game.addScore(50);

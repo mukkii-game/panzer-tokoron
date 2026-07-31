@@ -4,7 +4,8 @@ export class AudioSys {
 
   ensure() {
     if (this.ctx) { this.ctx.resume(); return; }
-    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch { this.ctx = null; return; }
     this.master = this.ctx.createGain();
     this.master.gain.value = 0.5;
     const comp = this.ctx.createDynamicsCompressor();
@@ -39,16 +40,17 @@ export class AudioSys {
   }
 
   // ===== SFX =====
-  shoot()  { const t = this.ctx.currentTime; this._osc('square', 880, t, 0.08, 0.06, this.master, 220); }
-  lock(n)  { const t = this.ctx.currentTime; this._osc('square', 700 + n * 90, t, 0.07, 0.1); }
-  homing() { const t = this.ctx.currentTime; this._noise(t, 0.25, 0.15, 900, 'bandpass'); this._osc('sawtooth', 300, t, 0.3, 0.1, this.master, 1200); }
-  boom()   { const t = this.ctx.currentTime; this._noise(t, 0.3, 0.3, 700, 'lowpass'); this._osc('sine', 160, t, 0.3, 0.3, this.master, 40); }
-  bigBoom(){ const t = this.ctx.currentTime; this._noise(t, 0.8, 0.4, 500, 'lowpass'); this._osc('sine', 120, t, 0.9, 0.4, this.master, 30); }
-  hit()    { const t = this.ctx.currentTime; this._osc('sawtooth', 200, t, 0.25, 0.25, this.master, 60); this._noise(t, 0.15, 0.2, 3000); }
-  msg()    { const t = this.ctx.currentTime; this._osc('triangle', 1047, t, 0.12, 0.15); this._osc('triangle', 1319, t + 0.12, 0.2, 0.15); }
-  heal()   { const t = this.ctx.currentTime; [523, 659, 784, 1047].forEach((f, i) => this._osc('triangle', f, t + i * 0.07, 0.15, 0.14)); }
+  shoot()  { if (!this.ctx) return; const t = this.ctx.currentTime; this._osc('square', 880, t, 0.08, 0.06, this.master, 220); }
+  lock(n)  { if (!this.ctx) return; const t = this.ctx.currentTime; this._osc('square', 700 + n * 90, t, 0.07, 0.1); }
+  homing() { if (!this.ctx) return; const t = this.ctx.currentTime; this._noise(t, 0.25, 0.15, 900, 'bandpass'); this._osc('sawtooth', 300, t, 0.3, 0.1, this.master, 1200); }
+  boom()   { if (!this.ctx) return; const t = this.ctx.currentTime; this._noise(t, 0.3, 0.3, 700, 'lowpass'); this._osc('sine', 160, t, 0.3, 0.3, this.master, 40); }
+  bigBoom(){ if (!this.ctx) return; const t = this.ctx.currentTime; this._noise(t, 0.8, 0.4, 500, 'lowpass'); this._osc('sine', 120, t, 0.9, 0.4, this.master, 30); }
+  hit()    { if (!this.ctx) return; const t = this.ctx.currentTime; this._osc('sawtooth', 200, t, 0.25, 0.25, this.master, 60); this._noise(t, 0.15, 0.2, 3000); }
+  msg()    { if (!this.ctx) return; const t = this.ctx.currentTime; this._osc('triangle', 1047, t, 0.12, 0.15); this._osc('triangle', 1319, t + 0.12, 0.2, 0.15); }
+  heal()   { if (!this.ctx) return; const t = this.ctx.currentTime; [523, 659, 784, 1047].forEach((f, i) => this._osc('triangle', f, t + i * 0.07, 0.15, 0.14)); }
 
   _jingle(notes, type = 'square') {
+    if (!this.ctx) return;
     const t = this.ctx.currentTime;
     notes.forEach(([f, at, dur]) => { this._osc(type, f, t + at, dur, 0.14); this._osc('triangle', f / 2, t + at, dur, 0.12); });
   }

@@ -62,7 +62,7 @@ const lockResult = await page.evaluate(async () => {
   game.input.locking = true;
   const t0 = performance.now();
   const iv = setInterval(() => {
-    const e = game.enemies.find(e => e.alive && e.pos.z < -5);
+    const e = game.enemies.find(e => e.alive && e.pos.distanceTo(game.player.pos) > 7);
     if (e) {
       const v = e.pos.clone().project(game.camera);
       game.input.aim.x = (v.x + 1) * 0.5 * innerWidth;
@@ -86,7 +86,7 @@ const shotResult = await page.evaluate(async () => {
   game.input.locking = false;
   const t0 = performance.now();
   const iv = setInterval(() => {
-    const e = game.enemies.find(e => e.alive && e.pos.z < -5);
+    const e = game.enemies.find(e => e.alive && e.pos.distanceTo(game.player.pos) > 7);
     if (e) {
       const v = e.pos.clone().project(game.camera);
       game.input.aim.x = (v.x + 1) * 0.5 * innerWidth;

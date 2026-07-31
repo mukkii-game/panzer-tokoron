@@ -86,7 +86,7 @@ await page.evaluate(() => {
     }
     game.input.getMove = () => ({ x: Math.max(-1, Math.min(1, mx)), y: Math.max(-1, Math.min(1, my)) });
     // 照準: ボス優先、なければ近い敵
-    const target = game.boss && game.boss.alive ? game.boss : game.enemies.find(e => e.alive && e.pos.z < -6);
+    const target = game.boss && game.boss.alive ? game.boss : game.enemies.find(e => e.alive && e.pos.distanceTo(game.player.pos) > 7);
     if (target) {
       const v = target.pos.clone().project(game.camera);
       game.input.aim.x = (v.x + 1) * 0.5 * innerWidth + (Math.random() - 0.5) * 20;
