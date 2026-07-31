@@ -66,7 +66,12 @@ export class UI {
   hideTitle() { this.els.title.classList.add('hidden'); }
   showResult(clear, score) {
     this.els.resultTitle.textContent = clear ? 'ミッションクリア！' : 'やられた〜…';
-    this.els.resultScore.textContent = 'SCORE ' + score;
+    let best = 0;
+    try {
+      best = +(localStorage.getItem('tokoron_best') || 0);
+      if (score > best) { best = score; localStorage.setItem('tokoron_best', String(best)); }
+    } catch { /* プライベートモード等 */ }
+    this.els.resultScore.innerHTML = `SCORE ${score}<br><span style="font-size:.6em">ベスト ${best}${score >= best && score > 0 ? ' 🏆新記録！' : ''}</span>`;
     this.els.result.classList.remove('hidden');
   }
   setTouchMode(on) {

@@ -127,8 +127,11 @@ export class Weapons {
       this.shotCool = 0.13;
     }
 
-    // ロックスイープ
-    if (input.locking && !game.player.dead) this.sweepLocks();
+    // ロックスイープ(ロック中は気合顔)
+    if (input.locking && !game.player.dead) {
+      this.sweepLocks();
+      if (this.locks.length > 0 && game.player.exprTimer <= 0.1) game.player.setExpression('angry', 0.2);
+    }
 
     // 死んだ敵のロック解除
     this.locks = this.locks.filter(e => { if (!e.alive) { game.ui.setLock(this.locks.length - 1); return false; } return true; });

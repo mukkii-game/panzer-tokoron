@@ -165,9 +165,14 @@ function updateCollisions(dt) {
     b.mesh.position.addScaledVector(b.vel, dt);
     b.life -= dt;
     let dead = b.life <= 0 || b.mesh.position.z > 20 || b.mesh.position.y < -3;
-    if (!dead && !p.dead && b.mesh.position.distanceTo(p.pos) < b.r + p.radius) {
-      p.takeHit(game);
-      dead = true;
+    if (!dead && !p.dead) {
+      const d = b.mesh.position.distanceTo(p.pos);
+      if (d < b.r + p.radius) {
+        p.takeHit(game);
+        dead = true;
+      } else if (d < 2.6 && p.invuln <= 0 && p.exprTimer <= 0) {
+        p.setExpression('panic', 0.45); // ニアミスでヒヤッ
+      }
     }
     if (dead) { scene.remove(b.mesh); disposeObject(b.mesh); game.enemyBullets.splice(i, 1); }
   }

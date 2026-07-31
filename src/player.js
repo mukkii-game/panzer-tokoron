@@ -239,6 +239,12 @@ export class Player {
       this.group.rotation.z += dt * 9;
     }
 
+    // クリア時は喜びのくるくる旋回
+    if (game.state === 'clear') {
+      this.group.rotation.y += dt * 4;
+      this.pos.y = Math.min(7, this.pos.y + dt * 0.8);
+    }
+
     // 浮遊ボビング
     const bobY = Math.sin(t * 3.1) * 0.14;
     this.group.position.set(
