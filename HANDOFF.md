@@ -6,11 +6,12 @@
 
 - Web版プレイ可能。2026-07-31 顔リファイン中: 表情canvasをイラスト準拠のクリーム楕円+茶アウトライン+大きめ黒丸目+ω舌に全面書き直し、翼を関節付き(肩/肘/羽先)に、弾を大型化、ホーミングにもくもく雲、地上y=0.12まで下降可、360度ウェーブ方向は既存
 - git: `mukkii-game/panzer-tokoron` (private)
+- 音響: BGM=爽快シンセ(WebAudio合成)、効果音=Kenney Digital Audio / Sci-fi Sounds (CC0) を `assets/sfx/` 同梱
 
 ## 方針(変更しないこと)
 
 - **ビルドレス構成**: Three.js は importmap で CDN 読み込み。npm/バンドラ導入禁止(ゲーム本体には)
-- **アセットは全てコード生成**: 3Dモデル=プリミティブ合成、顔=Canvasテクスチャ(`src/player.js` の `drawFace`)、音=WebAudio合成(`src/audio.js`)。外部アセットファイル追加しない
+- **アセットは全てコード生成**: 3Dモデル=プリミティブ合成、顔=Canvasテクスチャ(`src/player.js` の `drawFace`)、音=BGMはWebAudio合成(`src/audio.js`)、効果音はKenney CC0を`assets/sfx/`に同梱(失敗時は合成フォールバック)。3D/顔はコード生成のまま
 - 元イラスト: `assets/`(ワークスペース外、チャット添付)。トコろん配色: 体=#F6A21E、顔=#FDF3DC、帽子=#FFCC00、プロペラ=緑#7DC242、羽=白
 
 ## カメラ仕様(ユーザー要望 2026-07-31)
