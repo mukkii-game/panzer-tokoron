@@ -3,6 +3,18 @@ import { disposeObject } from './enemies.js';
 
 const puffGeo = new THREE.SphereGeometry(1, 10, 8);
 
+// ロック数(1〜8)ごとのもくもく雲カラー(薄め)
+const LOCK_SMOKE = [
+  0xfffaf0, // 1 薄いクリーム白
+  0xfff3a0, // 2 薄い黄
+  0xa8dcff, // 3 薄い青
+  0xffb0b8, // 4 薄い赤
+  0xc8f5b0, // 5 薄い緑
+  0xffd0a8, // 6 薄い橙
+  0xd8c8ff, // 7 薄い紫
+  0xff98c0, // 8 薄いピンク
+];
+
 // 直線ショット + ロックオン/ホーミング + 照準管理
 export class Weapons {
   constructor(game) {
@@ -99,8 +111,9 @@ export class Weapons {
       game.player.setExpression('angry', 0.9);
       game.audio.homing();
       game.homingSalvo = { total: targets.length, kills: 0, timer: 0 };
+      const lockTotal = targets.length;
       targets.forEach((e, i) => {
-        setTimeout(() => { if (e.alive) this.launchMissile(e); }, i * 90);
+        setTimeout(() => { if (e.alive) this.launchMissile(e, i, lockTotal); }, i * 90);
       });
     }
     this.locks.forEach(e => e.setLocked(false));
@@ -108,7 +121,7 @@ export class Weapons {
     game.ui.setLock(0);
   }
 
-  launchMissile(target) {
+  launchMissile(target, lockIndex = 0, lockTotal = 1) {
     const { game } = this;
     const from = game.player.pos.clone();
     const g = new THREE.Group();
@@ -133,17 +146,21 @@ export class Weapons {
     const vel = new THREE.Vector3()
       .addScaledVector(R, side)
       .add(new THREE.Vector3(0, up, 0))
-      .addScaledVector(F, -4); // 最初は少しカメラ側へ
+      .addScaledVector(F, -4);
+    // ロック数・何発目かで色分け(途中から色づく)
+    const hue = LOCK_SMOKE[Math.min(lockTotal - 1, LOCK_SMOKE.length - 1)];
+    const accent = LOCK_SMOKE[Math.min(lockIndex, LOCK_SMOKE.length - 1)];
     this.missiles.push({
       mesh: g, vel, target, life: 4.5, age: 0, speed: 52, emit: 0,
-      // もくもく雲の色バリエーション
-      puffHue: Math.random() < 0.5 ? 0xffffff : 0xffe8f0,
+      puffBase: 0xffffff,
+      puffHue: hue,
+      puffAccent: accent,
     });
   }
 
-  spawnPuff(pos, color, scale = 0.45) {
+  spawnPuff(pos, color, scale = 0.35, opacity = 0.28) {
     const puff = new THREE.Mesh(puffGeo, new THREE.MeshBasicMaterial({
-      color, transparent: true, opacity: 0.75, depthWrite: false,
+      color, transparent: true, opacity, depthWrite: false,
     }));
     puff.position.copy(pos);
     puff.position.x += (Math.random() - 0.5) * 0.35;
@@ -151,7 +168,10 @@ export class Weapons {
     puff.position.z += (Math.random() - 0.5) * 0.35;
     puff.scale.setScalar(scale);
     this.game.scene.add(puff);
-    this.smokes.push({ mesh: puff, t: 0, max: 0.9 + Math.random() * 0.4 });
+    this.smokes.push({
+      mesh: puff, t: 0, max: 0.55 + Math.random() * 0.25,
+      baseOpacity: opacity,
+    });
   }
 
   update(dt) {
@@ -228,20 +248,24 @@ export class Weapons {
       ms.mesh.position.addScaledVector(ms.vel, dt);
       if (ms.vel.lengthSq() > 0.01) ms.mesh.lookAt(ms.mesh.position.clone().add(ms.vel));
 
-      // もくもく雲を高頻度で吐く
+      // もくもく雲: 序盤は白寄り、途中からロック数カラーへ。薄くて奥が見える
       ms.emit -= dt;
       if (ms.emit <= 0) {
-        ms.emit = 0.022;
-        this.spawnPuff(ms.mesh.position, ms.puffHue, 0.5 + Math.random() * 0.25);
-        // たまに大きめの雲も
-        if (Math.random() < 0.25) this.spawnPuff(ms.mesh.position, 0xffffff, 0.75);
+        ms.emit = 0.045;
+        const tint = ms.age < 0.45 ? ms.puffBase
+          : (Math.random() < 0.55 ? ms.puffHue : ms.puffAccent);
+        this.spawnPuff(ms.mesh.position, tint, 0.32 + Math.random() * 0.18, 0.22 + Math.min(0.12, ms.age * 0.04));
+        if (Math.random() < 0.12) {
+          this.spawnPuff(ms.mesh.position, tint, 0.5, 0.18);
+        }
       }
 
       let done = false;
       if (ms.target && ms.target.alive && ms.mesh.position.distanceTo(ms.target.pos) < ms.target.radius + 0.9) {
         ms.target.damage(1, true);
-        // 着弾でもくもく爆発雲
-        for (let k = 0; k < 8; k++) this.spawnPuff(ms.mesh.position, 0xffffff, 0.7 + Math.random() * 0.6);
+        for (let k = 0; k < 5; k++) {
+          this.spawnPuff(ms.mesh.position, ms.puffHue, 0.45 + Math.random() * 0.35, 0.3);
+        }
         done = true;
       }
       if (done || ms.life <= 0) {
@@ -251,14 +275,14 @@ export class Weapons {
       }
     }
 
-    // 雲パフ成長・フェード
+    // 雲パフ成長・フェード(薄め・早めに消える)
     for (let i = this.smokes.length - 1; i >= 0; i--) {
       const p = this.smokes[i];
       p.t += dt;
       const k = p.t / p.max;
-      p.mesh.scale.setScalar(0.45 + k * 1.8);
-      p.mesh.material.opacity = 0.75 * Math.max(0, 1 - k);
-      p.mesh.position.y += dt * 0.55;
+      p.mesh.scale.setScalar(0.32 + k * 1.1);
+      p.mesh.material.opacity = (p.baseOpacity ?? 0.28) * Math.max(0, 1 - k);
+      p.mesh.position.y += dt * 0.45;
       if (k >= 1) {
         game.scene.remove(p.mesh);
         p.mesh.material.dispose();
